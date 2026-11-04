@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"pattern": [
+		"S",
+		"C",
+		"S"
+	],
+	"key": {
+		"S": "minecraft:string",
+		"C": "minecraft:compass"
+	},
+	"result": {
+		"id": "mile-spool:mile_spool",
+		"count": 1
+	}
+}

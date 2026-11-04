@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/handheld",
+	"textures": {
+		"layer0": "dusk-survey:item/dusk_survey"
+	}
+}

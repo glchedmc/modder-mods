@@ -1,0 +1,10 @@
+{
+	"item.mote-charm.mote_charm": "Mote Charm",
+	"tooltip.mote-charm.hint": "Use to shrink for a short time. Sneak-use to grow back early.",
+	"message.mote-charm.small": "You are pocket-sized for a moment.",
+	"message.mote-charm.busy": "The charm is already working.",
+	"message.mote-charm.riding": "Step off first.",
+	"message.mote-charm.grown": "Back to your usual size.",
+	"message.mote-charm.tight": "Too tight to grow. Dig out a space.",
+	"message.mote-charm.cooldown": "The charm is resting."
+}

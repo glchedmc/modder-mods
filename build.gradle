@@ -62,6 +62,14 @@ project(":smoke-test") {
 		implementation project(":mods:salvage-hook")
 		implementation project(":mods:seam-pick")
 		implementation project(":mods:tide-wand")
+		implementation project(":mods:stack-lure")
+		implementation project(":mods:restock-chime")
+		implementation project(":mods:mile-spool")
+		implementation project(":mods:kiln-tally")
+		implementation project(":mods:dusk-survey")
+		implementation project(":mods:mote-charm")
+		implementation project(":mods:swap-baton")
+		implementation project(":mods:reed-kite")
 	}
 
 	tasks.named("runServer").configure {

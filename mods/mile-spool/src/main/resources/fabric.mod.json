@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "mile-spool",
+	"version": "${version}",
+	"name": "Mile Spool",
+	"description": "Saves one place on a spool of string and points you back while you hold it.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/mile-spool"
+	},
+	"license": "MIT",
+	"icon": "assets/mile-spool/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.milespool.MileSpool"],
+		"client": ["mc.glched.milespool.MileSpoolClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

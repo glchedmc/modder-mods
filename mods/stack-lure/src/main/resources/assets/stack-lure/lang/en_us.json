@@ -1,0 +1,7 @@
+{
+	"item.stack-lure.stack_lure": "Stack Lure",
+	"tooltip.stack-lure.hint": "Pulls drops you can add to a stack you already carry. Sneak to pause.",
+	"tooltip.stack-lure.off": "Quiet. Use it again to draw.",
+	"message.stack-lure.on": "Stack Lure is drawing items you already carry.",
+	"message.stack-lure.off": "Stack Lure is quiet."
+}

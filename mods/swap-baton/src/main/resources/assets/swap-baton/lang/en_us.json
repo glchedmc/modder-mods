@@ -1,0 +1,9 @@
+{
+	"item.swap-baton.swap_baton": "Swap Baton",
+	"tooltip.swap-baton.hint": "Use on a full block. The block in your other hand takes its place.",
+	"message.swap-baton.need_block": "Hold the block you want to place in your other hand.",
+	"message.swap-baton.same": "That block is already here.",
+	"message.swap-baton.refused": "The baton will not trade this block.",
+	"message.swap-baton.unsteady": "That block would not stay here.",
+	"message.swap-baton.swapped": "Swapped in %s."
+}

@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "reed-kite",
+	"version": "${version}",
+	"name": "Reed Kite",
+	"description": "Hold it while you fall to drift down slowly. Sneak when you want to drop.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/reed-kite"
+	},
+	"license": "MIT",
+	"icon": "assets/reed-kite/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.reedkite.ReedKite"],
+		"client": ["mc.glched.reedkite.ReedKiteClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

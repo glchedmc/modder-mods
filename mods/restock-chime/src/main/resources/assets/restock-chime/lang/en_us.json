@@ -1,0 +1,12 @@
+{
+	"item.restock-chime.restock_chime": "Restock Chime",
+	"tooltip.restock-chime.hint": "Use on a villager to watch their stock. Sneak-use to forget them.",
+	"message.restock-chime.watching": "Watching this %s (%s trades).",
+	"message.restock-chime.no_trades": "This villager has nothing for sale.",
+	"message.restock-chime.baby": "This villager is too young to trade.",
+	"message.restock-chime.full": "You are already watching %s villagers. Sneak-use to clear the list.",
+	"message.restock-chime.cleared": "Stopped watching %s villagers.",
+	"message.restock-chime.status": "Watching %s villagers.",
+	"message.restock-chime.restocked": "A watched villager restocked %s.",
+	"message.restock-chime.restocked_more": "A watched villager restocked %s, and %s more."
+}

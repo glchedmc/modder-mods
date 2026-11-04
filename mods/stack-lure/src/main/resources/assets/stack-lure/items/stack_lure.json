@@ -1,0 +1,6 @@
+{
+	"model": {
+		"type": "minecraft:model",
+		"model": "stack-lure:item/stack_lure"
+	}
+}
