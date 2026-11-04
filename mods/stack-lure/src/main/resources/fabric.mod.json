@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "stack-lure",
+	"version": "${version}",
+	"name": "Stack Lure",
+	"description": "Draws dropped items toward you only when you already carry that item and the stack still has room.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/stack-lure"
+	},
+	"license": "MIT",
+	"icon": "assets/stack-lure/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.stacklure.StackLure"],
+		"client": ["mc.glched.stacklure.StackLureClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

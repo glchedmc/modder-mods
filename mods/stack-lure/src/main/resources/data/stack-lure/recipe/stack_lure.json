@@ -1,0 +1,18 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"pattern": [
+		"I I",
+		"LSL",
+		" L "
+	],
+	"key": {
+		"I": "minecraft:iron_ingot",
+		"L": "minecraft:lead",
+		"S": "minecraft:slime_ball"
+	},
+	"result": {
+		"id": "stack-lure:stack_lure",
+		"count": 1
+	}
+}

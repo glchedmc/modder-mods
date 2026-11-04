@@ -1,0 +1,6 @@
+{
+	"model": {
+		"type": "minecraft:model",
+		"model": "swap-baton:item/swap_baton"
+	}
+}

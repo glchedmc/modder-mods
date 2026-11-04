@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "swap-baton",
+	"version": "${version}",
+	"name": "Swap Baton",
+	"description": "Trades one full block in the world for the block held in your other hand.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/swap-baton"
+	},
+	"license": "MIT",
+	"icon": "assets/swap-baton/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.swapbaton.SwapBaton"],
+		"client": ["mc.glched.swapbaton.SwapBatonClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

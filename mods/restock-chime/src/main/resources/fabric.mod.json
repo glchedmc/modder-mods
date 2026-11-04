@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "restock-chime",
+	"version": "${version}",
+	"name": "Restock Chime",
+	"description": "Mark a villager with a small bell. It rings once when one of their trades restocks.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/restock-chime"
+	},
+	"license": "MIT",
+	"icon": "assets/restock-chime/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.restockchime.RestockChime"],
+		"client": ["mc.glched.restockchime.RestockChimeClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "mote-charm",
+	"version": "${version}",
+	"name": "Mote Charm",
+	"description": "Shrinks you for a short while so a one-block gap is enough, then waits until you have room to grow.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/mote-charm"
+	},
+	"license": "MIT",
+	"icon": "assets/mote-charm/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.motecharm.MoteCharm"],
+		"client": ["mc.glched.motecharm.MoteCharmClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

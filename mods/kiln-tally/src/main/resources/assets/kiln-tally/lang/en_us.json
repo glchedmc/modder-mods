@@ -1,0 +1,12 @@
+{
+	"item.kiln-tally.kiln_tally": "Kiln Tally",
+	"tooltip.kiln-tally.hint": "Use on a furnace to read it. Sneak-use to take the finished items.",
+	"message.kiln-tally.report": "%s — input %s, fuel %s, output %s. %s",
+	"message.kiln-tally.burning": "It is burning",
+	"message.kiln-tally.idle": "It is idle",
+	"message.kiln-tally.empty": "empty",
+	"message.kiln-tally.stack": "%s %s",
+	"message.kiln-tally.took": "Took %s %s.",
+	"message.kiln-tally.nothing": "Nothing is ready to take.",
+	"message.kiln-tally.full": "No room for %s."
+}

@@ -1,0 +1,19 @@
+{
+	"item.dusk-survey.dusk_survey": "Dusk Survey",
+	"tooltip.dusk-survey.hint": "Use to count nearby spots a hostile mob could spawn in the dark.",
+	"message.dusk-survey.clear": "No dark spawn spots in this patch. Your feet are clear.",
+	"message.dusk-survey.report": "%s dark spawn spots. Nearest is %s blocks %s. %s",
+	"message.dusk-survey.feet_safe": "Your feet are clear.",
+	"message.dusk-survey.feet_unsafe": "Your feet are not safe.",
+	"message.dusk-survey.direction.here": "here",
+	"message.dusk-survey.direction.up": "up",
+	"message.dusk-survey.direction.down": "down",
+	"message.dusk-survey.direction.north": "north",
+	"message.dusk-survey.direction.south": "south",
+	"message.dusk-survey.direction.east": "east",
+	"message.dusk-survey.direction.west": "west",
+	"message.dusk-survey.direction.northeast": "northeast",
+	"message.dusk-survey.direction.northwest": "northwest",
+	"message.dusk-survey.direction.southeast": "southeast",
+	"message.dusk-survey.direction.southwest": "southwest"
+}

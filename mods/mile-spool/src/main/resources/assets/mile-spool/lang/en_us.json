@@ -1,0 +1,23 @@
+{
+	"item.mile-spool.mile_spool": "Mile Spool",
+	"tooltip.mile-spool.hint": "Use to mark your feet. Sneak-use to clear it. Hold it to be pointed back.",
+	"tooltip.mile-spool.mark": "Mark: %s %s %s in %s",
+	"message.mile-spool.marked": "Marked %s %s %s in %s.",
+	"message.mile-spool.cleared": "Cleared the mark.",
+	"message.mile-spool.none": "This spool has no mark.",
+	"message.mile-spool.arrived": "You are at the mark.",
+	"message.mile-spool.track": "%s blocks %s, %s (%s %s %s)",
+	"message.mile-spool.other": "The mark is in %s at %s %s %s.",
+	"message.mile-spool.up": "%s up",
+	"message.mile-spool.down": "%s down",
+	"message.mile-spool.level": "level with you",
+	"message.mile-spool.direction.here": "here",
+	"message.mile-spool.direction.north": "north",
+	"message.mile-spool.direction.south": "south",
+	"message.mile-spool.direction.east": "east",
+	"message.mile-spool.direction.west": "west",
+	"message.mile-spool.direction.northeast": "northeast",
+	"message.mile-spool.direction.northwest": "northwest",
+	"message.mile-spool.direction.southeast": "southeast",
+	"message.mile-spool.direction.southwest": "southwest"
+}
