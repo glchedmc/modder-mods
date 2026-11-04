@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "pocket-clerk",
+	"version": "${version}",
+	"name": "Pocket Clerk",
+	"description": "Sort your own pockets, and file matching items into a container you already have open.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/pocket-clerk"
+	},
+	"license": "MIT",
+	"icon": "assets/pocket-clerk/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.pocketclerk.PocketClerk"],
+		"client": ["mc.glched.pocketclerk.PocketClerkClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

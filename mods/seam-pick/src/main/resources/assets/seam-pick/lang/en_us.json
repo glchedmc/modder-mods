@@ -1,0 +1,5 @@
+{
+	"item.seam-pick.seam_pick": "Seam Pick",
+	"tooltip.seam-pick.hint": "Mines a connected seam of the same block. Sneak for a single block.",
+	"message.seam-pick.hungry": "Too hungry to chase the seam."
+}

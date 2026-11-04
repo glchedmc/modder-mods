@@ -1,0 +1,9 @@
+{
+	"key.category.pocket-clerk.clerk": "Pocket Clerk",
+	"key.pocket-clerk.sort": "Sort Pockets",
+	"key.pocket-clerk.quick_stack": "File Matching Items",
+	"message.pocket-clerk.sorted": "Pockets sorted (%s stacks).",
+	"message.pocket-clerk.filed": "Filed %s items into the open container.",
+	"message.pocket-clerk.nothing_filed": "Nothing in your pockets matches what is already in there.",
+	"message.pocket-clerk.no_container": "Open a chest, barrel, or other container first."
+}

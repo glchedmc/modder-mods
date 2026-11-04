@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "seam-pick",
+	"version": "${version}",
+	"name": "Seam Pick",
+	"description": "An iron-tier pick that follows one vein of the same block, and tires you out for every extra block.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/seam-pick"
+	},
+	"license": "MIT",
+	"icon": "assets/seam-pick/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.seampick.SeamPick"],
+		"client": ["mc.glched.seampick.SeamPickClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

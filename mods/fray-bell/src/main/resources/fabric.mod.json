@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "fray-bell",
+	"version": "${version}",
+	"name": "Fray Bell",
+	"description": "A quiet bell the first time a held tool or piece of armor crosses a wear threshold.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/fray-bell"
+	},
+	"license": "MIT",
+	"icon": "assets/fray-bell/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.fraybell.FrayBell"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

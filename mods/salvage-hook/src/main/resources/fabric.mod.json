@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "salvage-hook",
+	"version": "${version}",
+	"name": "Salvage Hook",
+	"description": "A rope hook that pulls you to a block and tugs dropped items along the line. It does not yank mobs.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/salvage-hook"
+	},
+	"license": "MIT",
+	"icon": "assets/salvage-hook/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.salvagehook.SalvageHook"],
+		"client": ["mc.glched.salvagehook.SalvageHookClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
