@@ -1,0 +1,78 @@
+plugins {
+	id "net.fabricmc.fabric-loom" version "${loom_version}" apply false
+}
+
+subprojects { sub ->
+	if (sub.path == ":mods") {
+		return
+	}
+
+	apply plugin: "net.fabricmc.fabric-loom"
+
+	version = mod_version
+	group = maven_group
+
+	base {
+		archivesName = project.name
+	}
+
+	repositories {
+		mavenCentral()
+	}
+
+	dependencies {
+		minecraft "com.mojang:minecraft:${minecraft_version}"
+		implementation "net.fabricmc:fabric-loader:${loader_version}"
+		implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+	}
+
+	processResources {
+		def ver = project.version
+		inputs.property "version", ver
+		filesMatching("fabric.mod.json") {
+			expand "version": ver
+		}
+	}
+
+	tasks.withType(JavaCompile).configureEach {
+		it.options.release = 25
+		it.options.encoding = "UTF-8"
+	}
+
+	java {
+		sourceCompatibility = JavaVersion.VERSION_25
+		targetCompatibility = JavaVersion.VERSION_25
+		withSourcesJar()
+	}
+
+	jar {
+		from("LICENSE") {
+			rename { "${it}_${project.name}" }
+		}
+	}
+}
+
+project(":smoke-test") {
+	dependencies {
+		implementation project(":mods:pocket-clerk")
+		implementation project(":mods:fray-bell")
+		implementation project(":mods:kindling-notes")
+		implementation project(":mods:row-again")
+		implementation project(":mods:last-light")
+		implementation project(":mods:salvage-hook")
+		implementation project(":mods:seam-pick")
+		implementation project(":mods:tide-wand")
+	}
+
+	tasks.named("runServer").configure {
+		doFirst {
+			def runDir = project.file("run")
+			runDir.mkdirs()
+			project.file("run/eula.txt").text = "eula=true\n"
+			def props = project.file("run/server.properties")
+			if (!props.exists()) {
+				props.text = "online-mode=false\nmotd=modder-mods smoke\nspawn-protection=0\n"
+			}
+		}
+	}
+}

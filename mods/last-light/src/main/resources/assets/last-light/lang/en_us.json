@@ -1,0 +1,16 @@
+{
+	"message.last-light.here": "Last light: %s %s %s in %s (%s blocks %s)",
+	"message.last-light.other_dimension": "Last light: %s %s %s in %s — you are in another dimension",
+	"message.last-light.none": "No last light is stored.",
+	"message.last-light.arrived": "You reached the last light.",
+	"message.last-light.faded": "The last light faded. /lastlight still knows the place.",
+	"message.last-light.direction.here": "here",
+	"message.last-light.direction.north": "north",
+	"message.last-light.direction.south": "south",
+	"message.last-light.direction.east": "east",
+	"message.last-light.direction.west": "west",
+	"message.last-light.direction.northeast": "northeast",
+	"message.last-light.direction.northwest": "northwest",
+	"message.last-light.direction.southeast": "southeast",
+	"message.last-light.direction.southwest": "southwest"
+}

@@ -1,0 +1,22 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = "Fabric"
+			url = "https://maven.fabricmc.net/"
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+rootProject.name = "modder-mods"
+
+include "mods:pocket-clerk"
+include "mods:fray-bell"
+include "mods:kindling-notes"
+include "mods:row-again"
+include "mods:last-light"
+include "mods:salvage-hook"
+include "mods:seam-pick"
+include "mods:tide-wand"
+include "smoke-test"

@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "row-again",
+	"version": "${version}",
+	"name": "Row Again",
+	"description": "Replants a mature crop from the harvest when you break it. Sneak to clear the row instead.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/row-again"
+	},
+	"license": "MIT",
+	"icon": "assets/row-again/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.rowagain.RowAgain"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "modder-smoke",
+	"version": "${version}",
+	"name": "Modder Mods Smoke Harness",
+	"description": "Dev-only server harness that loads the modder-mods collection together. Not for publishing.",
+	"authors": ["glchedmc"],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.smoke.SmokeHarness"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

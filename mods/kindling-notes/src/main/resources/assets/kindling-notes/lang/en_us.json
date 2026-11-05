@@ -1,0 +1,7 @@
+{
+	"tooltip.kindling-notes.food": "Food %s, saturation %s",
+	"tooltip.kindling-notes.fuel": "Furnace fuel",
+	"tooltip.kindling-notes.compost": "Compostable",
+	"tooltip.kindling-notes.repair": "Can be repaired",
+	"tooltip.kindling-notes.wear": "Wear %s / %s"
+}

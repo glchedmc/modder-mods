@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "last-light",
+	"version": "${version}",
+	"name": "Last Light",
+	"description": "After you die, a short-lived guide points you back to where you fell. Your items stay where they dropped.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/last-light"
+	},
+	"license": "MIT",
+	"icon": "assets/last-light/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.lastlight.LastLight"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

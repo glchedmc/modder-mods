@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"id": "tide-wand",
+	"version": "${version}",
+	"name": "Tide Wand",
+	"description": "Launches you along your look direction, or opens a short well that gathers drops and lifts you a little.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/tide-wand"
+	},
+	"license": "MIT",
+	"icon": "assets/tide-wand/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["mc.glched.tidewand.TideWand"],
+		"client": ["mc.glched.tidewand.TideWandClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

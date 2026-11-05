@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "kindling-notes",
+	"version": "${version}",
+	"name": "Kindling Notes",
+	"description": "Extra tooltip lines for food, fuel, compost, repair material, and remaining wear.",
+	"authors": ["glchedmc"],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/mods/kindling-notes"
+	},
+	"license": "MIT",
+	"icon": "assets/kindling-notes/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["mc.glched.kindlingnotes.KindlingNotesClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
