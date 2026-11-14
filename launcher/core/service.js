@@ -19,6 +19,8 @@ const companion = require('./companion');
 const msa = require('./auth/msa');
 const { PortJob } = require('./grok/porter');
 const { redact, exists } = require('./util');
+const defaults = require('./defaults');
+const schematics = require('./schematics');
 
 const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
@@ -44,11 +46,31 @@ class LauncherService {
   // ---------- settings & secrets ----------
   getSettings() { return settingsStore.load(this.dirs.settings); }
   async setSettings(patch) { const cur = await this.getSettings(); return settingsStore.save(this.dirs.settings, { ...cur, ...patch }); }
-  secretStatus() { return this.secrets.status(SECRET_NAMES); }
+  async secretStatus() {
+    const status = await this.secrets.status(SECRET_NAMES);
+    const custom = Boolean(status.curseforgeApiKey);
+    const builtin = defaults.hasBuiltinCurseforgeKey;
+    return {
+      ...status,
+      curseforgeApiKey: custom || builtin,
+      curseforgeApiKeyCustom: custom,
+      curseforgeApiKeyBuiltin: builtin,
+    };
+  }
   async setSecret(name, value) {
     if (!SECRET_NAMES.includes(name)) throw new Error(`Unknown secret ${name}`);
     await this.secrets.set(name, value);
     return this.secretStatus();
+  }
+
+  /** User-entered CurseForge key, otherwise the built-in default. */
+  async curseforgeKey() {
+    return (await this.secrets.get('curseforgeApiKey')) || defaults.curseforgeApiKey() || null;
+  }
+
+  async msaClientId() {
+    const s = await this.getSettings();
+    return s.msaClientId || defaults.msaClientId || '';
   }
 
   // ---------- versions ----------
@@ -104,20 +126,20 @@ class LauncherService {
   }
 
   async startSignIn() {
-    const s = await this.getSettings();
-    if (!s.msaClientId) return { needsClientId: true };
-    const device = await msa.startDeviceCode(s.msaClientId);
+    const clientId = await this.msaClientId();
+    if (!clientId) return { needsClientId: true };
+    const device = await msa.startDeviceCode(clientId);
     if (this.authAbort) this.authAbort.abort();
     this.authAbort = new AbortController();
     (async () => {
       try {
-        const token = await msa.pollToken(s.msaClientId, device, { signal: this.authAbort.signal });
+        const token = await msa.pollToken(clientId, device, { signal: this.authAbort.signal });
         this.emit('auth:update', { state: 'progress', step: 'Xbox Live' });
         const account = await msa.completeLogin(token);
         await this.secrets.set('accounts', JSON.stringify([account]));
         this.emit('auth:update', { state: 'done', name: account.name });
       } catch (e) {
-        this.emit('auth:update', { state: 'error', error: e.message });
+        this.emit('auth:update', { state: 'error', error: e.message, code: e.code });
       }
     })();
     return { userCode: device.user_code, verificationUri: device.verification_uri, expiresIn: device.expires_in };
@@ -132,8 +154,8 @@ class LauncherService {
     if (!list.length) return { type: 'demo', name: 'Player', uuid: '00000000000000000000000000000000', accessToken: '0' };
     let acc = list[0];
     if (Date.now() > acc.expiresAt - 5 * 60 * 1000) {
-      const s = await this.getSettings();
-      const t = await msa.refreshMsa(s.msaClientId, acc.refreshToken);
+      const clientId = await this.msaClientId();
+      const t = await msa.refreshMsa(clientId, acc.refreshToken);
       acc = await msa.completeLogin(t);
       await this.secrets.set('accounts', JSON.stringify([acc]));
     }
@@ -222,7 +244,7 @@ class LauncherService {
 
   // ---------- mods ----------
   async searchMods(params) {
-    if (params.source === 'curseforge') return curseforge.search(await this.secrets.get('curseforgeApiKey'), params);
+    if (params.source === 'curseforge') return curseforge.search(await this.curseforgeKey(), params);
     return modrinth.search(params);
   }
 
@@ -230,7 +252,7 @@ class LauncherService {
     const meta = await instances.get(this.dirs, instanceId);
     const dir = this.instanceDir(instanceId);
     let result;
-    if (source === 'curseforge') result = await installer.planCurseForge(meta, projectId, await this.secrets.get('curseforgeApiKey'));
+    if (source === 'curseforge') result = await installer.planCurseForge(meta, projectId, await this.curseforgeKey());
     else result = await installer.planModrinth(meta, projectId);
     if (!result.plan.length && result.missing.length) throw new Error(`${title} has no build for ${meta.mcVersion} on ${meta.loader}. Try Upgrade to ${meta.mcVersion}.`);
     const added = await installer.applyPlan(dir, meta, source, result.plan, { projectType, titles: { [projectId]: title } });
@@ -260,10 +282,44 @@ class LauncherService {
     return installer.checkCompatibility(this.instanceDir(instanceId), meta);
   }
 
+  // ---------- schematics ----------
+  async listSchematics(instanceId) {
+    const meta = await instances.get(this.dirs, instanceId);
+    const dir = this.instanceDir(instanceId);
+    return {
+      files: await schematics.list(dir),
+      dest: path.relative(dir, schematics.defaultDestDir(dir, { server: meta.type === 'server' })),
+      hasLitematica: schematics.hasLitematica(meta),
+      suggestLitematica: (meta.loader === 'fabric' || meta.loader === 'quilt') && meta.type !== 'server' && !schematics.hasLitematica(meta),
+    };
+  }
+
+  async addSchematics(instanceId, paths) {
+    const meta = await instances.get(this.dirs, instanceId);
+    const added = await schematics.addFiles(this.instanceDir(instanceId), paths, { server: meta.type === 'server' });
+    return { added, ...(await this.listSchematics(instanceId)) };
+  }
+
+  async removeSchematic(instanceId, rel) {
+    await instances.get(this.dirs, instanceId);
+    await schematics.remove(this.instanceDir(instanceId), rel);
+    return this.listSchematics(instanceId);
+  }
+
+  searchSchematics(query, opts) { return schematics.search(query, opts); }
+
+  async downloadSchematic(instanceId, file) {
+    const meta = await instances.get(this.dirs, instanceId);
+    const added = await schematics.downloadToInstance(this.instanceDir(instanceId), {
+      url: file.url, fileName: file.name, server: meta.type === 'server',
+    });
+    return { added, ...(await this.listSchematics(instanceId)) };
+  }
+
   // ---------- Grok ports ----------
   async startPort(instanceId, mod) {
     const apiKey = await this.secrets.get('xaiApiKey');
-    if (!apiKey) throw new Error('Add your xAI API key in Settings → Accounts & Keys.');
+    if (!apiKey) { const e = new Error('Add your xAI key in Settings'); e.code = 'NO_XAI_KEY'; throw e; }
     const meta = await instances.get(this.dirs, instanceId);
     if (meta.loader !== 'fabric' && meta.loader !== 'quilt') throw new Error('Grok upgrades currently target Fabric/Quilt instances.');
     const s = await this.getSettings();
@@ -271,7 +327,7 @@ class LauncherService {
     const job = new PortJob({
       dirs: this.dirs, javaPath, javaHome: this.javaHomeOf(javaPath), apiKey, model: s.grokModel, reasoning: s.grokReasoning,
       maxAttempts: s.grokMaxAttempts, instance: meta, instanceDir: this.instanceDir(instanceId), mod,
-      curseforgeKey: await this.secrets.get('curseforgeApiKey'),
+      curseforgeKey: await this.curseforgeKey(),
       emit: (state) => this.emit('grok:job', state),
     });
     this.jobs.set(job.id, job);

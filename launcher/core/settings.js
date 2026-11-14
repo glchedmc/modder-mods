@@ -4,6 +4,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const { readJsonSafe } = require('./util');
 const companion = require('./companion');
+const defaults = require('./defaults');
 
 const DEFAULTS = {
   defaultVersion: '26.3',
@@ -16,7 +17,7 @@ const DEFAULTS = {
   accent: '#7aa8ff',
   glassIntensity: 0.7,
   reduceMotion: false,
-  msaClientId: '',
+  msaClientId: defaults.msaClientId,
   grokModel: 'grok-4.7',
   grokReasoning: 'high',
   grokMaxAttempts: 5,
