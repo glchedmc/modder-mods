@@ -8,6 +8,7 @@ const METHODS = [
   'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
   'getCompanion', 'setCompanion', 'appInfo', 'openFolder', 'openUrl', 'pickSchematicFiles',
+  'importBackground', 'removeBackgroundFile', 'backgroundUrl', 'pickBackgroundFile',
 ];
 
 const api = {};

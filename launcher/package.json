@@ -1,7 +1,7 @@
 {
   "name": "glass-launcher",
   "productName": "Glass Launcher",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A liquid-glass Minecraft Java launcher for macOS with built-in mod browsing and Grok-powered mod upgrades.",
   "author": "glchedmc",
   "license": "MIT",

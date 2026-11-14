@@ -14,6 +14,7 @@ function layout(root) {
     cache: path.join(root, 'cache'),
     tools: path.join(root, 'tools'),
     ports: path.join(root, 'grok-ports'),
+    backgrounds: path.join(root, 'backgrounds'),
     settings: path.join(root, 'settings.json'),
     secrets: path.join(root, 'secrets.bin'),
   };
