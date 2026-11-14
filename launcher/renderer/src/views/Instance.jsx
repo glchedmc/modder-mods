@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../icons';
 import { api } from '../api';
 import { InstanceArt } from '../components/art';
 import { LOADER_META, ModIcon, Switch, Range, timeAgo } from '../components/ui';
 import CompanionSettings from './CompanionSettings';
+import Schematics from './Schematics';
 
 function StatusPill({ c }) {
   if (!c) return <span className="pill green"><span className="dot" />Compatible</span>;
@@ -18,6 +19,7 @@ export default function Instance({ app }) {
   const inst = app.instances.find((i) => i.id === app.params.id) || app.selected;
   const [tab, setTab] = useState(app.params.tab || 'mods');
   const [q, setQ] = useState('');
+  useEffect(() => { if (app.params.tab) setTab(app.params.tab); }, [app.params.tab]);
   if (!inst) return null;
   const mods = (inst.mods || []).filter((m) => !q || m.title.toLowerCase().includes(q.toLowerCase()));
   const loader = LOADER_META[inst.loader];
@@ -38,7 +40,7 @@ export default function Instance({ app }) {
       </div>
 
       <div className="tabs">
-        {[['mods', 'Mods', 'cube'], ['companion', 'Companion', 'sparkles'], ['settings', 'Game Settings', 'settings'], ['logs', 'Logs', 'terminal']].map(([k, l, ic]) => (
+        {[['mods', 'Mods', 'cube'], ['schematics', 'Schematics', 'layers'], ['companion', 'Companion', 'sparkles'], ['settings', 'Game Settings', 'settings'], ['logs', 'Logs', 'terminal']].map(([k, l, ic]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={15} />{l}</button>
         ))}
       </div>
@@ -74,6 +76,8 @@ export default function Instance({ app }) {
           </div>
         </>
       )}
+
+      {tab === 'schematics' && <Schematics app={app} instance={inst} />}
 
       {tab === 'companion' && <CompanionSettings app={app} instance={inst} />}
 

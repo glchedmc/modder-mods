@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from '../icons';
-import { api } from '../api';
+import { api, on } from '../api';
 import { Switch, Range, Segmented, Sheet } from '../components/ui';
 import CompanionSettings from './CompanionSettings';
 
@@ -13,7 +13,7 @@ const SECTIONS = [
   ['about', 'About', 'info'],
 ];
 
-function KeyRow({ name, label, hint, link, isSet, onSave }) {
+function KeyRow({ name, label, hint, link, isSet, builtin, onSave }) {
   const [val, setVal] = useState('');
   const [editing, setEditing] = useState(false);
   return (
@@ -21,6 +21,8 @@ function KeyRow({ name, label, hint, link, isSet, onSave }) {
       <div className="label"><b>{label}</b><span>{hint} {link && <a href={link} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Get a key</a>}</span></div>
       {isSet && !editing ? (
         <div className="row"><span className="secure-tag"><Icon name="lock" size={12} />Saved in Keychain</span><button className="btn sm" onClick={() => setEditing(true)}>Replace</button><button className="btn sm ghost" onClick={() => onSave(name, '')}>Remove</button></div>
+      ) : builtin && !editing ? (
+        <div className="row"><span className="secure-tag"><Icon name="check" size={12} />Built-in key is in use</span><button className="btn sm" onClick={() => setEditing(true)}>Replace</button></div>
       ) : (
         <div className="row">
           <div className="field key-field"><Icon name="key" size={14} /><input type="password" placeholder="Paste key" value={val} onChange={(e) => setVal(e.target.value)} autoComplete="off" spellCheck={false} /></div>
@@ -33,12 +35,22 @@ function KeyRow({ name, label, hint, link, isSet, onSave }) {
 
 function SignInSheet({ onClose, app }) {
   const [info, setInfo] = useState(null);
-  useEffect(() => { api.startSignIn().then(setInfo).catch((e) => setInfo({ error: e.message })); }, []);
+  useEffect(() => {
+    api.startSignIn().then(setInfo).catch((e) => setInfo({ error: e.message, code: e.code }));
+    return on('auth:update', (u) => {
+      if (u.state === 'error') setInfo((cur) => ({ ...(cur || {}), error: u.error, code: u.code }));
+      if (u.state === 'done') onClose();
+    });
+  }, [onClose]);
   return (
     <Sheet onClose={onClose} width={480}>
       <h2>Sign in with Microsoft</h2>
       {!info && <div className="muted" style={{ marginTop: 12 }}>Contacting Microsoft…</div>}
-      {info && info.error && <div className="muted" style={{ marginTop: 12 }}>{info.error}</div>}
+      {info && info.error && (
+        <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
+          {info.code === 'APP_NOT_APPROVED' ? 'Microsoft sign-in is waiting on Mojang approval.' : info.error}
+        </div>
+      )}
       {info && info.needsClientId && (
         <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
           Microsoft sign-in for Minecraft needs an Azure app client ID that Mojang has approved for Minecraft services. Add yours under <b>Azure client ID</b> first. See the README for the two-step setup.
@@ -82,7 +94,7 @@ export default function Settings({ app }) {
           <div className="group-title">Mod sources</div>
           <div className="group glass">
             <div className="setting"><div className="label"><b>Modrinth</b><span>Public API, no key needed.</span></div><Switch on={s.modSources.modrinth} onChange={(v) => set({ modSources: { ...s.modSources, modrinth: v } })} /></div>
-            <div className="setting"><div className="label"><b>CurseForge</b><span>{app.secrets.curseforgeApiKey ? 'Connected.' : 'Needs an API key (Accounts & Keys).'}</span></div><Switch on={s.modSources.curseforge} onChange={(v) => set({ modSources: { ...s.modSources, curseforge: v } })} /></div>
+            <div className="setting"><div className="label"><b>CurseForge</b><span>{app.secrets.curseforgeApiKey ? (app.secrets.curseforgeApiKeyCustom ? 'Using your key.' : 'Using the built-in key.') : 'Needs an API key (Accounts & Keys).'}</span></div><Switch on={s.modSources.curseforge} onChange={(v) => set({ modSources: { ...s.modSources, curseforge: v } })} /></div>
           </div>
         </>}
 
@@ -116,13 +128,13 @@ export default function Settings({ app }) {
             ) : (
               <div className="setting"><div className="label"><b>Not signed in</b><span>Sign in with the Microsoft account that owns Minecraft: Java Edition.</span></div><button className="btn primary" onClick={() => setSignIn(true)}><Icon name="user" size={15} />Sign in</button></div>
             )}
-            <div className="setting"><div className="label"><b>Azure client ID</b><span>Your own Azure app, approved for Minecraft services. Not a secret, stored in settings.</span></div>
+            <div className="setting"><div className="label"><b>Azure client ID</b><span>Used for Microsoft sign-in. A default is built in; change it only if you registered your own app.</span></div>
               <div className="field key-field"><input placeholder="00000000-0000-0000-0000-000000000000" defaultValue={s.msaClientId} onBlur={(e) => set({ msaClientId: e.target.value.trim() })} spellCheck={false} /></div></div>
           </div>
           <div className="group-title"><Icon name="lock" size={13} />API keys · stored in the macOS Keychain</div>
           <div className="group glass">
             <KeyRow name="xaiApiKey" label="xAI (Grok) API key" hint="Powers Upgrade to 26.3." link="https://console.x.ai" isSet={app.secrets.xaiApiKey} onSave={app.setSecret} />
-            <KeyRow name="curseforgeApiKey" label="CurseForge API key" hint="Enables CurseForge in Discover." link="https://console.curseforge.com" isSet={app.secrets.curseforgeApiKey} onSave={app.setSecret} />
+            <KeyRow name="curseforgeApiKey" label="CurseForge API key" hint={app.secrets.curseforgeApiKeyCustom ? "Your key overrides the built-in one." : app.secrets.curseforgeApiKeyBuiltin ? "Using the built-in key. Paste your own to override it." : "Enables CurseForge in Discover."} link="https://console.curseforge.com" isSet={app.secrets.curseforgeApiKeyCustom} builtin={app.secrets.curseforgeApiKeyBuiltin && !app.secrets.curseforgeApiKeyCustom} onSave={app.setSecret} />
           </div>
           <div className="group-title">Grok</div>
           <div className="group glass">

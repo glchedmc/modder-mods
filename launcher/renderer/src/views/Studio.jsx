@@ -38,7 +38,7 @@ export default function Studio({ app }) {
       {!app.secrets.xaiApiKey && (
         <div className="upgrade-card glass" style={{ marginBottom: 16 }}>
           <div className="orb"><Icon name="key" size={20} /></div>
-          <div style={{ flex: 1 }}><h4 style={{ margin: 0 }}>Add your xAI API key to start porting</h4><div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Grok Studio uses the xAI API (grok-4.7). Your key is stored in the macOS Keychain.</div></div>
+          <div style={{ flex: 1 }}><h4 style={{ margin: 0 }}>Add your xAI key in Settings</h4><div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Grok Studio uses the xAI API (grok-4.7). Your key is stored in the macOS Keychain.</div></div>
           <button className="btn primary" onClick={() => app.go('settings', { section: 'keys' })}>Add Key</button>
         </div>
       )}
