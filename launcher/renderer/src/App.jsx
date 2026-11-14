@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from './icons';
 import { api, on, isElectron, features } from './api';
-import { Wallpaper } from './components/art';
+import { Wallpaper } from './components/backgrounds';
 import Home from './views/Home';
 import Library from './views/Library';
 import Instance from './views/Instance';
@@ -91,7 +91,7 @@ export default function App() {
     document.body.classList.toggle('reduce-motion', settings.reduceMotion);
   }, [settings]);
 
-  if (!settings) return <Wallpaper />;
+  if (!settings) return <Wallpaper settings={null} />;
 
   const app = {
     route, params, go, settings, secrets, instances, selected, accounts, account: accounts[0] || null, compat, launchState, logs, toast, refresh,
@@ -120,7 +120,7 @@ export default function App() {
 
   return (
     <>
-      <Wallpaper />
+      <Wallpaper settings={settings} />
       <div className={`app ${isMac ? 'mac' : ''}`}>
         <aside className="sidebar glass">
           <div className="traffic"><i /><i /><i /></div>

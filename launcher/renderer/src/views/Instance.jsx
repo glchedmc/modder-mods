@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Icon from '../icons';
-import { api } from '../api';
-import { InstanceArt } from '../components/art';
+import { api, isElectron } from '../api';
+import { InstanceCover, BackgroundPicker } from '../components/backgrounds';
 import { LOADER_META, ModIcon, Switch, Range, timeAgo } from '../components/ui';
 import CompanionSettings from './CompanionSettings';
 import Schematics from './Schematics';
@@ -27,7 +27,7 @@ export default function Instance({ app }) {
   return (
     <div className="view-enter">
       <div className="glass" style={{ borderRadius: 26, overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}>
-        <div style={{ width: 230, minHeight: 130, position: 'relative' }}><InstanceArt instance={inst} height={130} /></div>
+        <div style={{ width: 230, minHeight: 130, position: 'relative' }}><InstanceCover instance={inst} settings={app.settings} height={130} /></div>
         <div style={{ flex: 1, padding: '18px 22px' }} className="col">
           <div className="row" style={{ gap: 8 }}><span className="pill">{inst.mcVersion}</span><span className="pill">{loader.label} {inst.loaderVersion || ''}</span>{inst.companion && <span className="pill violet"><Icon name="sparkles" size={11} />Companion</span>}</div>
           <h2 style={{ margin: '8px 0 2px', fontSize: 26, letterSpacing: '-0.02em' }}>{inst.name}</h2>
@@ -82,6 +82,37 @@ export default function Instance({ app }) {
       {tab === 'companion' && <CompanionSettings app={app} instance={inst} />}
 
       {tab === 'settings' && (
+        <>
+        <div className="group-title">Cover</div>
+        <div className="group glass" style={{ padding: '14px 16px 8px' }}>
+          <BackgroundPicker
+            compact
+            includeInherit
+            includeArt
+            instance={inst}
+            settings={app.settings}
+            value={inst.background || 'art'}
+            custom={inst.customBackground}
+            solid={inst.backgroundSolid || app.settings.backgroundSolid}
+            onSelect={(id) => app.updateInstance(inst.id, { background: id })}
+            onSolidColor={(c) => app.updateInstance(inst.id, { background: 'solid-custom', backgroundSolid: c })}
+            onImport={async () => {
+              if (!isElectron) { app.toast('Add a file in the installed app'); return; }
+              const filePath = await api.pickBackgroundFile();
+              if (!filePath) return;
+              try {
+                const meta = await api.importBackground(filePath);
+                if (inst.customBackground && inst.customBackground.file) await api.removeBackgroundFile(inst.customBackground.file).catch(() => {});
+                await app.updateInstance(inst.id, { background: 'custom', customBackground: meta });
+              } catch (e) { app.toast(e.message, 'error'); }
+            }}
+            onRemoveCustom={async () => {
+              if (inst.customBackground && inst.customBackground.file) await api.removeBackgroundFile(inst.customBackground.file).catch(() => {});
+              await app.updateInstance(inst.id, { background: inst.background === 'custom' ? 'art' : inst.background, customBackground: null });
+            }}
+          />
+        </div>
+        <div className="group-title">Game</div>
         <div className="group glass">
           <div className="setting"><div className="label"><b>Memory</b><span>How much RAM Minecraft may use.</span></div>
             <Range value={inst.memoryMb} min={1024} max={16384} step={512} onChange={(v) => app.updateInstance(inst.id, { memoryMb: v })} format={(v) => `${(v / 1024).toFixed(1)} GB`} /></div>
@@ -92,6 +123,7 @@ export default function Instance({ app }) {
           <div className="setting"><div className="label"><b>Delete instance</b><span>Removes worlds, mods and settings in this instance.</span></div>
             <button className="btn danger" onClick={() => app.removeInstance(inst.id)}><Icon name="trash" size={15} />Delete</button></div>
         </div>
+        </>
       )}
 
       {tab === 'logs' && (

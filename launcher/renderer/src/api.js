@@ -21,7 +21,7 @@ const now = Date.now();
 const mock = {
   settings: {
     defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false,
-    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7',
+    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
   },
   secrets: { xaiApiKey: true, curseforgeApiKey: true, curseforgeApiKeyCustom: false, curseforgeApiKeyBuiltin: true },
@@ -143,7 +143,15 @@ const mockApi = {
   downloadSchematic: async (_id, file) => { mock.schematics.files.unshift({ name: file.name, rel: 'schematics/' + file.name, folder: 'schematics', size: file.size || 1024, mtime: new Date().toISOString(), ext: (file.name.split('.').pop() || 'litematic') }); return { added: [file.name], ...mock.schematics }; },
   pickSchematicFiles: async () => [],
   openUrl: async () => {},
-  appInfo: async () => ({ version: '0.1.1', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Glass Launcher', electron: 'preview' }),
+  pickBackgroundFile: async () => null,
+  importBackground: async (filePath) => {
+    const name = String(filePath || 'background.png').split('/').pop();
+    const ext = (name.split('.').pop() || 'png').toLowerCase();
+    return { id: 'mock', file: name, name, kind: ['mp4', 'webm'].includes(ext) ? 'video' : 'image', ext };
+  },
+  removeBackgroundFile: async () => {},
+  backgroundUrl: async () => null,
+  appInfo: async () => ({ version: '0.1.2', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Glass Launcher', electron: 'preview' }),
 };
 
 export const api = isElectron ? window.glass.api : mockApi;

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import Icon from '../icons';
-import { api, on } from '../api';
+import { api, on, isElectron } from '../api';
 import { Switch, Range, Segmented, Sheet } from '../components/ui';
+import { BackgroundPicker } from '../components/backgrounds';
 import CompanionSettings from './CompanionSettings';
 
 const SECTIONS = [
@@ -106,6 +107,36 @@ export default function Settings({ app }) {
               <div className="row">{['#7aa8ff', '#b28dff', '#ff8fb1', '#ffb36b', '#5be49b', '#4fd1e8'].map((c) => <button key={c} onClick={() => set({ accent: c })} style={{ width: 24, height: 24, borderRadius: '50%', border: s.accent === c ? '2px solid #fff' : '2px solid transparent', background: c, boxShadow: `0 0 0 ${s.accent === c ? 3 : 0}px ${c}66, inset 0 1px 0 rgba(255,255,255,.5)` }} />)}</div></div>
             <div className="setting"><div className="label"><b>Glass intensity</b><span>Blur and translucency of panels.</span></div><Range value={s.glassIntensity} min={0.2} max={1} step={0.05} onChange={(v) => set({ glassIntensity: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
             <div className="setting"><div className="label"><b>Reduce motion</b><span>Turns off animations.</span></div><Switch on={s.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></div>
+          </div>
+          <div className="group-title">Backgrounds</div>
+          <div className="group glass">
+            <div className="setting"><div className="label"><b>Blur</b><span>Softens the scene.</span></div><Range value={s.backgroundBlur ?? 0} min={0} max={1} step={0.05} onChange={(v) => set({ backgroundBlur: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
+            <div className="setting"><div className="label"><b>Dim</b><span>Darkens the scene.</span></div><Range value={s.backgroundDim ?? 0} min={0} max={0.8} step={0.05} onChange={(v) => set({ backgroundDim: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
+            <div className="setting"><div className="label"><b>Parallax</b><span>Shifts with the pointer.</span></div><Range value={s.backgroundParallax ?? 0} min={0} max={1} step={0.05} onChange={(v) => set({ backgroundParallax: v })} format={(v) => s.reduceMotion ? 'Off' : `${Math.round(v * 100)}%`} /></div>
+          </div>
+          <div className="group glass" style={{ padding: '14px 16px 8px' }}>
+            <BackgroundPicker
+              settings={s}
+              value={s.backgroundId || 'highlands'}
+              custom={s.customBackground}
+              solid={s.backgroundSolid}
+              onSelect={(id) => set({ backgroundId: id })}
+              onSolidColor={(c) => set({ backgroundId: 'solid-custom', backgroundSolid: c })}
+              onImport={async () => {
+                if (!isElectron) { app.toast('Add a file in the installed app'); return; }
+                const filePath = await api.pickBackgroundFile();
+                if (!filePath) return;
+                try {
+                  const meta = await api.importBackground(filePath);
+                  if (s.customBackground && s.customBackground.file) await api.removeBackgroundFile(s.customBackground.file).catch(() => {});
+                  await set({ backgroundId: 'custom', customBackground: meta });
+                } catch (e) { app.toast(e.message, 'error'); }
+              }}
+              onRemoveCustom={async () => {
+                if (s.customBackground && s.customBackground.file) await api.removeBackgroundFile(s.customBackground.file).catch(() => {});
+                await set({ backgroundId: s.backgroundId === 'custom' ? 'highlands' : s.backgroundId, customBackground: null });
+              }}
+            />
           </div>
         </>}
 
