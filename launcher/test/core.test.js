@@ -232,3 +232,82 @@ test('instances: create/list/update/remove', async () => {
   await instances.remove(dirs, b.id);
   assert.equal((await instances.list(dirs)).length, 1);
 });
+
+const settingsStore = require('../core/settings');
+const defaults = require('../core/defaults');
+const schematics = require('../core/schematics');
+const { LauncherService } = require('../core/service');
+const AdmZip = require('adm-zip');
+
+test('settings default to the public Azure client ID', () => {
+  assert.equal(settingsStore.DEFAULTS.msaClientId, '8e130755-4b0b-4252-bc49-40cfa995f0d3');
+  assert.equal(defaults.msaClientId, '8e130755-4b0b-4252-bc49-40cfa995f0d3');
+});
+
+test('curseforge key: user value overrides built-in; status never reveals secrets', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-'));
+  const svc = await new LauncherService({ dataDir, cipher: plainCipher, resourcesDir: dataDir }).init();
+  const st = await svc.secretStatus();
+  assert.equal(typeof st.curseforgeApiKey, 'boolean');
+  assert.equal(typeof st.curseforgeApiKeyBuiltin, 'boolean');
+  assert.equal(st.curseforgeApiKey, Boolean(st.curseforgeApiKeyCustom || st.curseforgeApiKeyBuiltin));
+  const builtin = await svc.curseforgeKey();
+  assert.equal(Boolean(builtin), st.curseforgeApiKeyBuiltin || st.curseforgeApiKeyCustom);
+  assert.equal(JSON.stringify(st).includes(builtin || 'no-key'), false);
+  await svc.setSecret('curseforgeApiKey', 'user-override-key-for-test');
+  assert.equal(await svc.curseforgeKey(), 'user-override-key-for-test');
+  const st2 = await svc.secretStatus();
+  assert.equal(st2.curseforgeApiKeyCustom, true);
+  assert.equal(st2.curseforgeApiKey, true);
+  await svc.setSecret('curseforgeApiKey', '');
+  const back = await svc.curseforgeKey();
+  assert.ok(back === defaults.curseforgeApiKey());
+});
+
+test('schematics: list, add, zip extract, remove, and reject path traversal', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-schem-'));
+  const inst = path.join(root, 'inst');
+  fs.mkdirSync(path.join(inst, 'schematics'), { recursive: true });
+  fs.mkdirSync(path.join(inst, 'config', 'worldedit', 'schematics'), { recursive: true });
+  fs.writeFileSync(path.join(inst, 'schematics', 'house.litematic'), 'lite');
+  fs.writeFileSync(path.join(inst, 'config', 'worldedit', 'schematics', 'farm.schem'), 'we');
+  fs.writeFileSync(path.join(inst, 'schematics', 'notes.txt'), 'nope');
+  const listed = await schematics.list(inst);
+  assert.deepEqual(listed.map((f) => f.name).sort(), ['farm.schem', 'house.litematic']);
+  assert.ok(listed.find((f) => f.folder.includes('worldedit')));
+
+  const src = path.join(root, 'castle.nbt');
+  fs.writeFileSync(src, 'struct');
+  const added = await schematics.addFiles(inst, [src]);
+  assert.equal(added.length, 1);
+  assert.ok(fs.existsSync(path.join(inst, added[0])));
+
+  const zipPath = path.join(root, 'pack.zip');
+  const zip = new AdmZip();
+  zip.addFile('builds/tower.litematic', Buffer.from('tower'));
+  zip.addFile('readme.txt', Buffer.from('no'));
+  zip.addFile('evil.jar', Buffer.from('pk'));
+  zip.addFile('../escape.litematic', Buffer.from('x'));
+  zip.writeZip(zipPath);
+  const fromZip = await schematics.addFiles(inst, [zipPath]);
+  assert.ok(fromZip.some((f) => f.endsWith('tower.litematic')));
+  assert.ok(!fromZip.some((f) => f.endsWith('evil.jar') || f.endsWith('readme.txt')));
+
+  await schematics.remove(inst, 'schematics/house.litematic');
+  assert.ok(!fs.existsSync(path.join(inst, 'schematics', 'house.litematic')));
+  await assert.rejects(() => schematics.remove(inst, '../instance.json'), /outside/);
+  await assert.rejects(() => schematics.addFiles(inst, [path.join(root, 'malware.exe')]), /not a schematic/);
+  assert.equal(schematics.hasLitematica({ mods: [{ projectId: 'bEpr0Arc', title: 'Litematica' }] }), true);
+  assert.equal(schematics.hasLitematica({ mods: [{ projectId: 'sodium', title: 'Sodium' }] }), false);
+  assert.equal(schematics.allowedDownloadUrl('https://minemev.com/api/minemev/download/x/a.litematic'), true);
+  assert.equal(schematics.allowedDownloadUrl('https://evil.example/a.litematic'), false);
+  assert.equal(schematics.allowedDownloadUrl('http://minemev.com/a.litematic'), false);
+});
+
+test('microsoft unapproved app uses a clear waiting-on-Mojang message', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../core/auth/msa.js'), 'utf8');
+  assert.match(src, /Microsoft sign-in is waiting on Mojang approval/);
+  assert.match(src, /APP_NOT_APPROVED/);
+  assert.match(src, /Invalid app registration/);
+  assert.match(src, /status === 403/);
+});

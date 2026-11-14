@@ -21,10 +21,10 @@ const now = Date.now();
 const mock = {
   settings: {
     defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false,
-    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, msaClientId: '', grokModel: 'grok-4.7',
+    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
   },
-  secrets: { xaiApiKey: true, curseforgeApiKey: false },
+  secrets: { xaiApiKey: true, curseforgeApiKey: true, curseforgeApiKeyCustom: false, curseforgeApiKeyBuiltin: true },
   accounts: [],
   instances: [
     { id: 'fabric-26-3', name: 'Fabric 26.3', mcVersion: '26.3', loader: 'fabric', loaderVersion: '0.20.1', type: 'client', accent: '#7aa8ff', icon: 'grass', memoryMb: 6144, companion: true, lastPlayed: new Date(now - 3600e3).toISOString(), playTimeSec: 151200,
@@ -48,6 +48,17 @@ const mock = {
     'lambdynamiclights-4.2.1+1.21.4.jar': { status: 'needs-port', gameVersions: ['1.21.4'] },
     'boss-ledger-1.0.0.jar': { status: 'ported' },
   },
+  schematics: {
+    files: [
+      { name: 'starter-house.litematic', rel: 'schematics/starter-house.litematic', folder: 'schematics', size: 18432, mtime: new Date(now - 3600e3 * 8).toISOString(), ext: 'litematic' },
+      { name: 'iron-farm.schem', rel: 'schematics/iron-farm.schem', folder: 'schematics', size: 93184, mtime: new Date(now - 86400e3 * 3).toISOString(), ext: 'schem' },
+    ],
+    dest: 'schematics', hasLitematica: false, suggestLitematica: true,
+  },
+  schematicHits: [
+    { source: 'minemev', id: 'demo-1', vendor: 'minemev', title: 'Simple 1wt Accessible box loader', author: 'Sergent_Patate', summary: 'A simple 1wt accessible box loader.', icon: null, downloads: 60, tags: ['storage-tech'], versions: [], pageUrl: 'https://minemev.com/', file: { name: 'box_loader.litematic', url: 'https://minemev.com/example.litematic', size: 1042, type: 'litematic' }, files: [{ name: 'box_loader.litematic', url: 'https://minemev.com/example.litematic', size: 1042 }] },
+    { source: 'minemev', id: 'demo-2', vendor: 'choculaterie', title: 'Root House', author: 'soller', summary: 'A cozy starter house.', icon: null, downloads: 40, tags: ['build'], versions: [], pageUrl: 'https://choculaterie.com/schematics', file: { name: 'roothouse.litematic', url: 'https://choculaterie.com/example.litematic', size: 8504, type: 'litematic' }, files: [{ name: 'roothouse.litematic', url: 'https://choculaterie.com/example.litematic', size: 8504 }] },
+  ],
   jobs: [
     { id: 'job-1', title: 'LambDynamicLights', from: '1.21.4', to: '26.3', instanceId: 'fabric-26-3', state: 'running', step: 3, attempt: 2, maxAttempts: 5, startedAt: now - 140e3,
       sourceKind: 'GitHub · LambdAurora/LambDynamicLights',
@@ -125,7 +136,14 @@ const mockApi = {
   signOut: async () => { mock.accounts = []; },
   getCompanion: async () => mock.settings.companion,
   setCompanion: async (_id, cfg) => (mock.settings.companion = cfg),
-  appInfo: async () => ({ version: '0.1.0', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Glass Launcher', electron: 'preview' }),
+  listSchematics: async () => mock.schematics,
+  addSchematics: async (_id, paths) => { (paths || []).forEach((p) => mock.schematics.files.unshift({ name: p.split('/').pop(), rel: 'schematics/' + p.split('/').pop(), folder: 'schematics', size: 2048, mtime: new Date().toISOString(), ext: (p.split('.').pop() || 'litematic') })); return { added: paths, ...mock.schematics }; },
+  removeSchematic: async (_id, rel) => { mock.schematics.files = mock.schematics.files.filter((f) => f.rel !== rel); return mock.schematics; },
+  searchSchematics: async (query) => ({ total: mock.schematicHits.filter((h) => !query || h.title.toLowerCase().includes(String(query).toLowerCase())).length, hits: mock.schematicHits.filter((h) => !query || h.title.toLowerCase().includes(String(query).toLowerCase())), source: 'MineMev', sourceUrl: 'https://minemev.com/' }),
+  downloadSchematic: async (_id, file) => { mock.schematics.files.unshift({ name: file.name, rel: 'schematics/' + file.name, folder: 'schematics', size: file.size || 1024, mtime: new Date().toISOString(), ext: (file.name.split('.').pop() || 'litematic') }); return { added: [file.name], ...mock.schematics }; },
+  pickSchematicFiles: async () => [],
+  openUrl: async () => {},
+  appInfo: async () => ({ version: '0.1.1', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Glass Launcher', electron: 'preview' }),
 };
 
 export const api = isElectron ? window.glass.api : mockApi;

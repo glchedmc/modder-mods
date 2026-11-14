@@ -340,3 +340,11 @@ input[type='color']::-webkit-color-swatch-wrapper { padding: 0; } input[type='co
 .empty { text-align: center; padding: 50px 20px; color: var(--text-2); }
 .kbd { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.18); }
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation: none !important; transition: none !important; }
+
+/* ---------- Schematics ---------- */
+.dropzone {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 16px;
+  border: 1.5px dashed rgba(255,255,255,0.28); color: var(--text-2); font-size: 12.5px; line-height: 1.4;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.dropzone.over { border-color: rgb(var(--accent-rgb)); background: rgba(var(--accent-rgb), 0.16); color: var(--text); }

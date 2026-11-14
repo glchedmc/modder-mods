@@ -8,16 +8,19 @@ import Instance from './views/Instance';
 import Discover from './views/Discover';
 import Studio from './views/Studio';
 import Settings from './views/Settings';
+import Schematics from './views/Schematics';
 
 const NAV = [
   ['home', 'Play', 'home'],
   ['library', 'Library', 'library'],
   ['discover', 'Discover', 'discover'],
+  ['schematics', 'Schematics', 'layers'],
   ['studio', 'Grok Studio', 'sparkles'],
   ['settings', 'Settings', 'settings'],
 ];
 const TITLES = {
   home: ['Play', null], library: ['Library', 'Your instances and servers'], discover: ['Discover', 'Mods, packs and shaders from every platform'],
+  schematics: ['Schematics', 'Builds for the selected instance'],
   studio: ['Grok Studio', 'Upgrade mods to the latest Minecraft'], settings: ['Settings', null], instance: ['Instance', null],
 };
 
@@ -105,13 +108,13 @@ export default function App() {
       try { const r = await api.installMod(inst.id, source, hit.id, hit.title); toast(`Installed ${hit.title}${r.added.length > 1 ? ` + ${r.added.length - 1} dependenc${r.added.length > 2 ? 'ies' : 'y'}` : ''}`, 'ok'); if (r.missing && r.missing.length) toast(`${r.missing.length} required dependency has no ${inst.mcVersion} build`, 'error'); refresh(); } catch (e) { toast(e.message, 'error'); }
     },
     startPort: async (inst, mod) => {
-      if (!secrets.xaiApiKey && isElectron) { toast('Add your xAI API key first', 'error'); go('settings', { section: 'keys' }); return; }
+      if (!secrets.xaiApiKey && isElectron) { toast('Add your xAI key in Settings', 'error'); go('settings', { section: 'keys' }); return; }
       const job = await api.startPort(inst.id, mod); go('studio', { job: job.id });
     },
   };
 
   const [title, sub] = TITLES[route] || TITLES.home;
-  const views = { home: Home, library: Library, instance: Instance, discover: Discover, studio: Studio, settings: Settings };
+  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings };
   const View = views[route] || Home;
   const isMac = isElectron && navigator.userAgent.includes('Mac');
 
@@ -124,7 +127,7 @@ export default function App() {
           <div className="brand"><div className="logo" /><div><b>Glass</b><small>Minecraft Launcher</small></div></div>
           <nav className="nav">
             {NAV.map(([k, label, icon]) => (
-              <button key={k} className={route === k || (k === 'library' && route === 'instance') ? 'active' : ''} onClick={() => go(k)}>
+              <button key={k} className={route === k || (k === 'library' && route === 'instance' && params.tab !== 'schematics') || (k === 'schematics' && route === 'instance' && params.tab === 'schematics') ? 'active' : ''} onClick={() => go(k)}>
                 <Icon name={icon} size={18} />{label}
                 {k === 'studio' && jobsRunning > 0 && <span className="badge">{jobsRunning}</span>}
               </button>
