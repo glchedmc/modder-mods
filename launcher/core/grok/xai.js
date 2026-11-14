@@ -17,7 +17,7 @@ function outputText(resp) {
 }
 
 async function createResponse({ apiKey, model = DEFAULT_MODEL, input, instructions, previousResponseId, reasoningEffort = 'high', maxOutputTokens, signal, timeoutMs = 30 * 60 * 1000 }) {
-  if (!apiKey) throw new Error('No xAI API key. Add it in Settings → Accounts & Keys.');
+  if (!apiKey) { const e = new Error('Add your xAI key in Settings'); e.code = 'NO_XAI_KEY'; throw e; }
   const body = {
     model,
     input,

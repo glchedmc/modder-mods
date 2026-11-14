@@ -80,8 +80,9 @@ async function minecraftLogin({ uhs, xstsToken }) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identityToken: `XBL3.0 x=${uhs};${xstsToken}` }),
   });
   const json = await res.json().catch(() => ({}));
-  if (res.status === 403 || (json.errorMessage && /Invalid app registration/i.test(json.errorMessage))) {
-    const e = new Error('Minecraft services refused this Azure app. New client IDs must be approved by Mojang first: apply at https://aka.ms/mce-reviewappid.');
+  const unapproved = res.status === 403 || (json.errorMessage && /Invalid app registration/i.test(json.errorMessage));
+  if (unapproved) {
+    const e = new Error('Microsoft sign-in is waiting on Mojang approval.');
     e.code = 'APP_NOT_APPROVED';
     throw e;
   }

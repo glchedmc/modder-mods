@@ -1,12 +1,13 @@
 'use strict';
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const METHODS = [
   'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions',
   'listInstances', 'createInstance', 'updateInstance', 'removeInstance', 'launch',
   'searchMods', 'installMod', 'removeMod', 'toggleMod', 'checkMods',
+  'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
-  'getCompanion', 'setCompanion', 'appInfo', 'openFolder',
+  'getCompanion', 'setCompanion', 'appInfo', 'openFolder', 'openUrl', 'pickSchematicFiles',
 ];
 
 const api = {};
@@ -21,6 +22,10 @@ for (const m of METHODS) {
 const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update'];
 contextBridge.exposeInMainWorld('glass', {
   api,
+  pathsFromFiles(fileList) {
+    try { return Array.from(fileList || []).map((f) => webUtils.getPathForFile(f)).filter(Boolean); }
+    catch { return []; }
+  },
   on(channel, fn) {
     if (!CHANNELS.includes(channel)) throw new Error(`Unknown channel ${channel}`);
     const h = (_e, data) => fn(data);
