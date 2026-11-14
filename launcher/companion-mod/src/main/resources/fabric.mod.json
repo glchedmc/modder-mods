@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 1,
+	"id": "glass-companion",
+	"version": "${version}",
+	"name": "Glass Companion",
+	"description": "Quality-of-life HUD and visual tweaks bundled with Glass Launcher.",
+	"authors": [
+		"glchedmc"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"mc.glched.glasscompanion.GlassCompanion"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"mixins": [
+		"glass-companion.mixins.json"
+	],
+	"contact": {
+		"sources": "https://github.com/glchedmc/modder-mods/tree/main/launcher/companion-mod"
+	}
+}

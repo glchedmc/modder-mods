@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "mc.glched.glasscompanion.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"CameraMixin",
+		"GameRendererMixin",
+		"LightmapExtractorMixin",
+		"MouseHandlerMixin",
+		"ScreenEffectRendererMixin"
+	],
+	"injectors": { "defaultRequire": 1 }
+}
