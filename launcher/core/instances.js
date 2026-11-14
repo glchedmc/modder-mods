@@ -69,7 +69,7 @@ async function create(dirs, partial) {
   while (await exists(instanceDir(dirs, id))) id = `${slugify(partial.name)}-${crypto.randomBytes(2).toString('hex')}`;
   const meta = defaults({ ...partial, id });
   const dir = instanceDir(dirs, id);
-  const sub = meta.type === 'server' ? ['plugins'] : ['mods', 'config', 'resourcepacks', 'shaderpacks', 'saves', 'screenshots'];
+  const sub = meta.type === 'server' ? ['plugins', 'config'] : ['mods', 'config', 'resourcepacks', 'shaderpacks', 'saves', 'screenshots', 'schematics'];
   for (const s of sub) await fsp.mkdir(path.join(dir, s), { recursive: true });
   return save(dirs, meta);
 }

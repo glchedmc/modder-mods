@@ -1,7 +1,7 @@
 {
   "name": "glass-launcher",
   "productName": "Glass Launcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A liquid-glass Minecraft Java launcher for macOS with built-in mod browsing and Grok-powered mod upgrades.",
   "author": "glchedmc",
   "license": "MIT",
@@ -12,9 +12,10 @@
     "build:renderer": "vite build",
     "build:mod": "node scripts/build-companion.js",
     "icon": "node scripts/make-icon.mjs",
+    "inject": "node scripts/inject-defaults.js",
     "test": "node --test test/*.test.js",
     "screenshots": "node scripts/screenshots.mjs",
-    "dist:mac": "npm run icon && npm run build:renderer && electron-builder --mac zip --arm64 --x64 --publish never"
+    "dist:mac": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac zip --arm64 --x64 --publish never"
   },
   "dependencies": {
     "adm-zip": "^0.5.16"
@@ -47,6 +48,10 @@
       {
         "from": "resources/",
         "to": "resources/"
+      },
+      {
+        "from": "core/builtin-private.js",
+        "to": "builtin-private.js"
       }
     ],
     "mac": {

@@ -7,3 +7,8 @@ companion-mod/.gradle/
 resources/companion/*.jar
 *.log
 build/icon.png
+
+# Built-in CurseForge key is generated at build time and must never be committed.
+core/builtin-private.js
+secrets/
+*.key
