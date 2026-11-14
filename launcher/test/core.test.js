@@ -311,3 +311,108 @@ test('microsoft unapproved app uses a clear waiting-on-Mojang message', () => {
   assert.match(src, /Invalid app registration/);
   assert.match(src, /status === 403/);
 });
+
+
+const backgrounds = require('../core/backgrounds');
+
+test('settings: background fields persist through save and load', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-set-'));
+  const file = path.join(dir, 'settings.json');
+  const saved = await settingsStore.save(file, {
+    theme: 'light',
+    accent: '#ff8fb1',
+    glassIntensity: 0.4,
+    backgroundId: 'sunset',
+    backgroundSolid: '#c46b4a',
+    backgroundBlur: 0.3,
+    backgroundDim: 0.15,
+    backgroundParallax: 0.5,
+    customBackground: { id: 'abc', file: 'abc.webp', name: 'dunes.webp', kind: 'image', ext: 'webp' },
+  });
+  assert.equal(saved.backgroundId, 'sunset');
+  assert.equal(saved.backgroundBlur, 0.3);
+  assert.equal(saved.theme, 'light');
+  assert.equal(saved.accent, '#ff8fb1');
+  const loaded = await settingsStore.load(file);
+  assert.equal(loaded.backgroundId, 'sunset');
+  assert.equal(loaded.backgroundSolid, '#c46b4a');
+  assert.equal(loaded.backgroundBlur, 0.3);
+  assert.equal(loaded.backgroundDim, 0.15);
+  assert.equal(loaded.backgroundParallax, 0.5);
+  assert.equal(loaded.customBackground.file, 'abc.webp');
+  assert.equal(loaded.glassIntensity, 0.4);
+  assert.equal(loaded.defaultVersion, '26.3');
+  const cleared = await settingsStore.save(file, { ...loaded, customBackground: null, backgroundId: 'highlands' });
+  assert.equal(cleared.customBackground, null);
+  assert.equal(cleared.backgroundId, 'highlands');
+});
+
+test('settings: missing background fields fall back to defaults', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-set-'));
+  const file = path.join(dir, 'settings.json');
+  fs.writeFileSync(file, JSON.stringify({ theme: 'dark', memoryMb: 2048 }));
+  const loaded = await settingsStore.load(file);
+  assert.equal(loaded.backgroundId, 'highlands');
+  assert.equal(loaded.backgroundSolid, '#1b1e52');
+  assert.equal(loaded.customBackground, null);
+  assert.equal(loaded.backgroundBlur, 0);
+  assert.equal(loaded.backgroundDim, 0.2);
+  assert.equal(loaded.backgroundParallax, 0.35);
+  assert.equal(loaded.theme, 'dark');
+  assert.equal(loaded.memoryMb, 2048);
+});
+
+test('backgrounds: import copies into the data folder and rejects bad files', async () => {
+  const dirs = layout(fs.mkdtempSync(path.join(os.tmpdir(), 'gl-bg-')));
+  const src = path.join(dirs.root, 'sunset.webp');
+  fs.writeFileSync(src, 'fake-webp-bytes');
+  const meta = await backgrounds.importFile(dirs, src, { originalName: 'My Sunset.webp' });
+  assert.equal(meta.kind, 'image');
+  assert.equal(meta.ext, 'webp');
+  assert.equal(meta.name, 'My Sunset.webp');
+  assert.ok(meta.file.endsWith('.webp'));
+  const dest = path.join(dirs.backgrounds, meta.file);
+  assert.ok(fs.existsSync(dest));
+  assert.equal(fs.readFileSync(dest, 'utf8'), 'fake-webp-bytes');
+  assert.equal(await backgrounds.fileExists(dirs, meta.file), true);
+  assert.match(backgrounds.mediaUrl(meta.file), /^glass-bg:\/\/file\//);
+
+  await assert.rejects(() => backgrounds.importFile(dirs, path.join(dirs.root, 'notes.txt')), /png, jpg, webp, gif, mp4, or webm/);
+  fs.writeFileSync(path.join(dirs.root, 'notes.txt'), 'nope');
+  await assert.rejects(() => backgrounds.importFile(dirs, path.join(dirs.root, 'notes.txt')), /png, jpg, webp, gif, mp4, or webm/);
+  await assert.rejects(() => backgrounds.importFile(dirs, path.join(dirs.root, 'missing.png')), /could not be read/);
+  assert.throws(() => backgrounds.safePath(dirs, '../escape.webp'), /Invalid background file/);
+  assert.throws(() => backgrounds.safePath(dirs, 'foo/bar.webp'), /Invalid background file/);
+  assert.throws(() => backgrounds.safePath(dirs, 'secret.bin'), /png, jpg, webp/);
+
+  await backgrounds.removeFile(dirs, meta.file);
+  assert.equal(fs.existsSync(dest), false);
+  await backgrounds.removeFile(dirs, 'already-gone.webp');
+});
+
+test('backgrounds: service import/remove and instance cover field', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gl-bgsvc-'));
+  const svc = await new LauncherService({ dataDir, cipher: plainCipher, resourcesDir: dataDir }).init();
+  assert.ok(fs.existsSync(path.join(dataDir, 'backgrounds')));
+  const src = path.join(dataDir, 'loop.webm');
+  fs.writeFileSync(src, 'video-bytes');
+  const meta = await svc.importBackground(src);
+  assert.equal(meta.kind, 'video');
+  const settings = await svc.setSettings({ backgroundId: 'custom', customBackground: meta, backgroundBlur: 0.25 });
+  assert.equal(settings.backgroundId, 'custom');
+  assert.equal(settings.customBackground.file, meta.file);
+  assert.equal(svc.backgroundUrl(meta.file), backgrounds.mediaUrl(meta.file));
+  assert.throws(() => svc.backgroundUrl('../x.webp'), /Invalid/);
+
+  const inst = await instances.create(svc.dirs, { name: 'Cover Test', loader: 'vanilla' });
+  assert.equal(inst.background, 'art');
+  const updated = await instances.update(svc.dirs, inst.id, { background: 'sunset' });
+  assert.equal(updated.background, 'sunset');
+  const withFile = await instances.update(svc.dirs, inst.id, { background: 'custom', customBackground: meta });
+  assert.equal(withFile.customBackground.file, meta.file);
+
+  await svc.removeBackgroundFile(meta.file);
+  assert.equal(await backgrounds.fileExists(svc.dirs, meta.file), false);
+  const again = await settingsStore.load(svc.dirs.settings);
+  assert.equal(again.backgroundBlur, 0.25);
+});

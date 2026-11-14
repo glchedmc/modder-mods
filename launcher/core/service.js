@@ -21,6 +21,7 @@ const { PortJob } = require('./grok/porter');
 const { redact, exists } = require('./util');
 const defaults = require('./defaults');
 const schematics = require('./schematics');
+const backgrounds = require('./backgrounds');
 
 const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
@@ -39,7 +40,7 @@ class LauncherService {
   }
 
   async init() {
-    for (const d of ['versions', 'libraries', 'assets', 'instances', 'runtimes', 'cache', 'tools', 'ports']) await fsp.mkdir(this.dirs[d], { recursive: true });
+    for (const d of ['versions', 'libraries', 'assets', 'instances', 'runtimes', 'cache', 'tools', 'ports', 'backgrounds']) await fsp.mkdir(this.dirs[d], { recursive: true });
     return this;
   }
 
@@ -71,6 +72,21 @@ class LauncherService {
   async msaClientId() {
     const s = await this.getSettings();
     return s.msaClientId || defaults.msaClientId || '';
+  }
+
+  // ---------- backgrounds ----------
+  importBackground(filePath, originalName) {
+    return backgrounds.importFile(this.dirs, filePath, { originalName });
+  }
+
+  removeBackgroundFile(file) {
+    return backgrounds.removeFile(this.dirs, file);
+  }
+
+  backgroundUrl(file) {
+    if (!file) return null;
+    backgrounds.safePath(this.dirs, file);
+    return backgrounds.mediaUrl(file);
   }
 
   // ---------- versions ----------
