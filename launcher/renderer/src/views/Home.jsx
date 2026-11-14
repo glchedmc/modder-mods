@@ -1,5 +1,5 @@
 import Icon from '../icons';
-import { InstanceArt } from '../components/art';
+import { InstanceCover } from '../components/backgrounds';
 import { LOADER_META, timeAgo, fmtHours, ModIcon } from '../components/ui';
 
 export default function Home({ app }) {
@@ -24,7 +24,7 @@ export default function Home({ app }) {
   return (
     <div className="view-enter stagger">
       <section className="hero glass">
-        <div className="art"><InstanceArt instance={inst} hero /></div>
+        <div className="art"><InstanceCover instance={inst} settings={app.settings} hero animated={!app.settings.reduceMotion} /></div>
         <div className="stats">
           <div className="stat glass flat"><b>{(inst.mods || []).length}</b><span>Mods</span></div>
           <div className="stat glass flat"><b>{fmtHours(inst.playTimeSec)}</b><span>Played</span></div>
@@ -91,7 +91,7 @@ export default function Home({ app }) {
         <div className="grid cols-3">
           {recent.map((i) => (
             <div key={i.id} className="glass card hover instance-card" onClick={() => setSelected(i.id)}>
-              <div className="cover"><InstanceArt instance={i} /></div>
+              <div className="cover"><InstanceCover instance={i} settings={app.settings} /></div>
               <div className="body" style={{ paddingTop: 13 }}>
                 <div className="row between"><h4 className="truncate">{i.name}</h4><span className="pill">{LOADER_META[i.loader].label}</span></div>
                 <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>{i.mcVersion} · {timeAgo(i.lastPlayed)}</div>

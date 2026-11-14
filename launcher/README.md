@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Unzip `Glass Launcher-0.1.1-arm64-mac.zip` (Apple silicon) or `Glass Launcher-0.1.1-mac.zip` (Intel).
+1. Unzip `Glass Launcher-0.1.2-arm64-mac.zip` (Apple silicon) or `Glass Launcher-0.1.2-mac.zip` (Intel).
 2. Drag **Glass Launcher.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -45,6 +45,7 @@ The flow is device code → Xbox Live → XSTS → Minecraft services → entitl
   Java runtimes are downloaded automatically from Adoptium to match each version (Java 25 for 26.3).
 - **Mods:** Modrinth and CurseForge search filtered by loader and version, install with required dependencies resolved,
   enable/disable, and compatibility status (ok / update / needs port / ported).
+- **Backgrounds:** Settings → Appearance has a grid of original wallpapers grouped as Landscapes (variations of the blocky hills at different times of day and seasons), Solids (including a custom color), Gradients, and Other (aurora, glass flow, starfield, prism, soft mesh). You can also add your own image or video, and adjust blur, dim, and parallax. Each instance can inherit the app background, keep its generated cover art, or pick its own scene or file.
 - **Schematics:** Per-instance library for `.litematic`, `.schem`, `.schematic` and `.nbt` files (the instance
   `schematics` folder, plus `config/worldedit/schematics` when present). Add via a file picker or drag-and-drop,
   remove with a confirm, and find new builds through [MineMev](https://minemev.com/developers/)'s public API
@@ -74,7 +75,7 @@ node scripts/verify-fabric.js   # real end-to-end: create a Fabric 26.3 instance
 Layout: `core/` holds the Electron-independent launcher logic (`LauncherService`), `electron/` the main and preload
 processes (IPC allow-list), `renderer/` the React UI, and `companion-mod/` the Fabric mod.
 
-## Status (v0.1.1)
+## Status (v0.1.2)
 
 Verified on a Linux box with no GPU: a Fabric 26.3 instance was created, its libraries and assets downloaded,
 and the game launched through Fabric Loader 0.20.1 with 49 mods. The companion mod passed the mixin audit and

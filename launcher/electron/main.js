@@ -1,7 +1,14 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { LauncherService } = require('../core/service');
+const backgrounds = require('../core/backgrounds');
+const { exists } = require('../core/util');
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'glass-bg', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } },
+]);
 
 let win;
 let service;
@@ -51,6 +58,7 @@ const METHODS = [
   'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
   'getCompanion', 'setCompanion',
+  'importBackground', 'removeBackgroundFile', 'backgroundUrl',
 ];
 
 app.whenReady().then(async () => {
@@ -70,8 +78,32 @@ app.whenReady().then(async () => {
       }
     });
   }
+  protocol.handle('glass-bg', async (request) => {
+    try {
+      const url = new URL(request.url);
+      const name = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+      const full = backgrounds.safePath(service.dirs, name);
+      if (!(await exists(full))) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(full).href);
+    } catch {
+      return new Response('Forbidden', { status: 403 });
+    }
+  });
+
   ipcMain.handle('api:openFolder', (_e, id) => shell.openPath(service.instanceDir(id)));
   ipcMain.handle('api:openUrl', (_e, url) => { if (/^https:\/\//.test(url)) shell.openExternal(url); });
+  ipcMain.handle('api:pickBackgroundFile', async () => {
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Choose a background',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Images and videos', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm'] },
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] },
+        { name: 'Videos', extensions: ['mp4', 'webm'] },
+      ],
+    });
+    return { ok: true, value: r.canceled ? null : r.filePaths[0] };
+  });
   ipcMain.handle('api:pickSchematicFiles', async () => {
     const r = await dialog.showOpenDialog(win, {
       title: 'Add schematics',

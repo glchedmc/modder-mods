@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Icon from '../icons';
 import { api } from '../api';
-import { InstanceArt } from '../components/art';
+import { InstanceCover } from '../components/backgrounds';
 import { LOADER_META, Sheet, timeAgo, Segmented } from '../components/ui';
 
 const ICONS = { grass: 'cube', sword: 'target', brush: 'palette', server: 'server' };
@@ -90,7 +90,7 @@ export default function Library({ app }) {
         {shown.map((i) => (
           <div key={i.id} className={`glass card hover instance-card ${selected && selected.id === i.id ? 'selected' : ''}`}
             onClick={() => setSelected(i.id)} onDoubleClick={() => go('instance', { id: i.id })}>
-            <div className="cover"><InstanceArt instance={i} /></div>
+            <div className="cover"><InstanceCover instance={i} settings={app.settings} /></div>
             <div className="icon" style={{ background: LOADER_META[i.loader].color }}><Icon name={ICONS[i.icon] || 'cube'} size={22} style={{ color: '#fff' }} /></div>
             <div className="body">
               <div className="row between"><h4 className="truncate">{i.name}</h4><button className="btn ghost sm icon-btn" onClick={(e) => { e.stopPropagation(); go('instance', { id: i.id }); }}><Icon name="chevron" size={16} /></button></div>
