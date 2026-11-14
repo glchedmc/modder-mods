@@ -1,0 +1,47 @@
+'use strict';
+// Non-secret launcher settings (secrets live in SecretStore).
+const fsp = require('fs/promises');
+const path = require('path');
+const { readJsonSafe } = require('./util');
+const companion = require('./companion');
+
+const DEFAULTS = {
+  defaultVersion: '26.3',
+  defaultLoader: 'fabric',
+  memoryMb: 4096,
+  javaPath: '',
+  closeOnLaunch: false,
+  showSnapshots: false,
+  theme: 'auto', // auto | light | dark
+  accent: '#7aa8ff',
+  glassIntensity: 0.7,
+  reduceMotion: false,
+  msaClientId: '',
+  grokModel: 'grok-4.7',
+  grokReasoning: 'high',
+  grokMaxAttempts: 5,
+  modSources: { modrinth: true, curseforge: true },
+  companion: companion.DEFAULT_CONFIG,
+  selectedInstance: null,
+};
+
+function merge(base, over) {
+  const out = { ...base };
+  for (const [k, v] of Object.entries(over || {})) {
+    out[k] = v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' ? merge(base[k], v) : v;
+  }
+  return out;
+}
+
+async function load(file) {
+  return merge(DEFAULTS, await readJsonSafe(file, {}));
+}
+
+async function save(file, settings) {
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const clean = merge(DEFAULTS, settings);
+  await fsp.writeFile(file, JSON.stringify(clean, null, 2));
+  return clean;
+}
+
+module.exports = { DEFAULTS, load, save, merge };
