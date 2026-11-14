@@ -1,0 +1,9 @@
+node_modules/
+renderer-dist/
+dist/
+.tools/
+companion-mod/build/
+companion-mod/.gradle/
+resources/companion/*.jar
+*.log
+build/icon.png
