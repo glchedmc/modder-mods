@@ -1,0 +1,53 @@
+{
+  "groups": [
+    { "id": "hud", "label": "HUD", "icon": "gauge" },
+    { "id": "visual", "label": "Visuals", "icon": "sparkles" },
+    { "id": "crosshair", "label": "Crosshair", "icon": "target" },
+    { "id": "tooltips", "label": "Tooltips", "icon": "text" },
+    { "id": "movement", "label": "Movement", "icon": "run" },
+    { "id": "performance", "label": "Performance", "icon": "bolt" }
+  ],
+  "features": [
+    { "key": "fpsHud", "group": "hud", "label": "FPS counter", "type": "bool", "default": true, "hint": "Frames per second in the corner." },
+    { "key": "cpsHud", "group": "hud", "label": "CPS counter", "type": "bool", "default": false, "hint": "Left and right clicks per second." },
+    { "key": "keystrokes", "group": "hud", "label": "Keystrokes", "type": "bool", "default": false, "hint": "WASD, Space and mouse buttons light up as you press them." },
+    { "key": "coordinates", "group": "hud", "label": "Coordinates", "type": "bool", "default": true, "hint": "XYZ with facing direction." },
+    { "key": "biomeHud", "group": "hud", "label": "Biome", "type": "bool", "default": false, "hint": "The biome you are standing in." },
+    { "key": "armorHud", "group": "hud", "label": "Armor status", "type": "bool", "default": true, "hint": "Armor and held item with durability." },
+    { "key": "potionHud", "group": "hud", "label": "Potion effects", "type": "bool", "default": true, "hint": "Active effects with time left." },
+    { "key": "pingHud", "group": "hud", "label": "Ping", "type": "bool", "default": false, "hint": "Latency to the server." },
+    { "key": "speedHud", "group": "hud", "label": "Speed", "type": "bool", "default": false, "hint": "Horizontal speed in blocks per second." },
+    { "key": "clockHud", "group": "hud", "label": "Clock", "type": "bool", "default": false, "hint": "Real-world time." },
+    { "key": "memoryHud", "group": "hud", "label": "Memory", "type": "bool", "default": false, "hint": "Java heap in use." },
+    { "key": "serverHud", "group": "hud", "label": "Server address", "type": "bool", "default": false, "hint": "The server you are connected to." },
+    { "key": "hudScale", "group": "hud", "label": "HUD scale", "type": "number", "min": 0.5, "max": 2, "step": 0.1, "default": 1 },
+    { "key": "hudBackground", "group": "hud", "label": "Glass backgrounds", "type": "bool", "default": true, "hint": "Translucent panels behind HUD text." },
+    { "key": "hudColor", "group": "hud", "label": "HUD text color", "type": "color", "default": "#FFFFFF" },
+
+    { "key": "zoom", "group": "visual", "label": "Zoom", "type": "bool", "default": true, "hint": "Hold C to zoom. Scroll while zooming to adjust." },
+    { "key": "zoomFactor", "group": "visual", "label": "Zoom strength", "type": "number", "min": 2, "max": 10, "step": 0.5, "default": 4 },
+    { "key": "smoothZoom", "group": "visual", "label": "Smooth zoom", "type": "bool", "default": true },
+    { "key": "fullbright", "group": "visual", "label": "Fullbright", "type": "bool", "default": false, "hint": "See in the dark without night vision." },
+    { "key": "noHurtCam", "group": "visual", "label": "No hurt camera shake", "type": "bool", "default": false },
+    { "key": "noViewBobbing", "group": "visual", "label": "No view bobbing", "type": "bool", "default": false },
+    { "key": "hideFireOverlay", "group": "visual", "label": "Hide fire overlay", "type": "bool", "default": false, "hint": "Removes the flames covering your screen while burning." },
+    { "key": "hideScoreboard", "group": "visual", "label": "Hide scoreboard", "type": "bool", "default": false },
+
+    { "key": "customCrosshair", "group": "crosshair", "label": "Custom crosshair", "type": "bool", "default": false },
+    { "key": "crosshairColor", "group": "crosshair", "label": "Color", "type": "color", "default": "#FFFFFF" },
+    { "key": "crosshairSize", "group": "crosshair", "label": "Arm length", "type": "number", "min": 1, "max": 12, "step": 1, "default": 5 },
+    { "key": "crosshairGap", "group": "crosshair", "label": "Gap", "type": "number", "min": 0, "max": 8, "step": 1, "default": 2 },
+    { "key": "crosshairThickness", "group": "crosshair", "label": "Thickness", "type": "number", "min": 1, "max": 4, "step": 1, "default": 1 },
+    { "key": "crosshairDot", "group": "crosshair", "label": "Center dot", "type": "bool", "default": false },
+    { "key": "crosshairOutline", "group": "crosshair", "label": "Outline", "type": "bool", "default": true },
+
+    { "key": "compactTooltips", "group": "tooltips", "label": "Compact tooltips", "type": "bool", "default": true, "hint": "Shorter item tooltips: no blank lines or wordy sections." },
+    { "key": "tooltipMaxLines", "group": "tooltips", "label": "Max lines (Shift shows all)", "type": "number", "min": 2, "max": 20, "step": 1, "default": 6 },
+    { "key": "hideAttributeLines", "group": "tooltips", "label": "Hide attribute lines", "type": "bool", "default": true, "hint": "Drops the \"When in Main Hand\" stat block." },
+
+    { "key": "toggleSprint", "group": "movement", "label": "Toggle sprint", "type": "bool", "default": false },
+    { "key": "toggleSneak", "group": "movement", "label": "Toggle sneak", "type": "bool", "default": false },
+
+    { "key": "unfocusedFps", "group": "performance", "label": "Save power in background", "type": "bool", "default": true, "hint": "Caps FPS at 15 while Minecraft is not focused." }
+  ]
+}
