@@ -199,6 +199,7 @@ const shots = [
     await p.waitForTimeout(900);
   }],
   ['60-games-tab', '#/games', async (p) => { await p.waitForSelector('.game-tile'); await p.waitForTimeout(3500); }],
+  ['61-games-filter', '#/games', async (p) => { await p.waitForSelector('.filter-chip'); await p.click('.hidden-games button'); await p.evaluate(() => document.querySelectorAll('*').forEach((e) => { if (e.scrollTop) e.scrollTop = 0; })); await p.waitForTimeout(3500); }, { width: 1360, height: 1180 }],
   ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 

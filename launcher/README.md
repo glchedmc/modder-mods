@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.8-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.9-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.8-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.8-x86_64.AppImage && ./SaturnClient-0.1.8-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.9-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.9-x86_64.AppImage && ./SaturnClient-0.1.9-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,15 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.9: no-violence filter for the Games tab
+
+- The Games tab now shows only driving, sports, casual, family and party games by default (Boomerang Fu, Assetto Corsa, BeamNG, Rocket League, Overcooked…). A chip next to the sort buttons shows how many games are hidden; click it, or use **Settings → General → No-violence game filter**, to show everything.
+- For each Steam game Saturn reads Steam's public store info (`store.steampowered.com/api/appdetails`: genres, categories, content descriptors) and the store page's user tags, and caches them in the launcher's cache folder for 30 days. No Steam login or API key.
+- **Shown:** Racing, Sports, Casual, Simulation, Family Friendly, Party or driving genres/tags, or local/online co-op and split-screen games. Well-known driving titles (Live for Speed, Gran Turismo-style sims, Forza, Assetto Corsa…) pass by name too.
+- **Hidden:** Steam content descriptors for frequent violence or gore (2) or adult content (1, 3, 4), or Shooter, FPS, Gore, Violent, Horror, Survival or Battle Royale tags. Hiding wins over showing.
+- If the Steam store can't be reached, games without saved info are shown rather than hidden.
+- Right-click any tile for **Always show** or **Hide**; the hidden list under the grid has **Always show** buttons too. Games you added by hand are always shown.
 
 ## What's new in 0.1.8: Games tab (Steam)
 
