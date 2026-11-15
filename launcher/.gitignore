@@ -12,3 +12,5 @@ build/icon.png
 core/builtin-private.js
 secrets/
 *.key
+build/icon.icns
+resources/dock/

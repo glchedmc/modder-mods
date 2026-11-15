@@ -1,8 +1,8 @@
 {
-  "name": "glass-launcher",
-  "productName": "Glass Launcher",
-  "version": "0.1.2",
-  "description": "A liquid-glass Minecraft Java launcher for macOS with built-in mod browsing and Grok-powered mod upgrades.",
+  "name": "saturn-client",
+  "productName": "Saturn Client",
+  "version": "0.1.3",
+  "description": "Saturn Client: a liquid-glass Minecraft Java launcher for macOS with built-in mod browsing, skins, cosmetics, world hosting and Grok-powered mod upgrades.",
   "author": "glchedmc",
   "license": "MIT",
   "private": true,
@@ -15,7 +15,8 @@
     "inject": "node scripts/inject-defaults.js",
     "test": "node --test test/*.test.js",
     "screenshots": "node scripts/screenshots.mjs",
-    "dist:mac": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac zip --arm64 --x64 --publish never"
+    "dist:mac": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac zip --arm64 --x64 --publish never",
+    "dist:mac:arm64": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac dir --arm64 --publish never"
   },
   "dependencies": {
     "adm-zip": "^0.5.16"
@@ -29,11 +30,12 @@
     "playwright-core": "^1.56.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "skinview3d": "^3.4.2",
     "vite": "^7.1.0"
   },
   "build": {
-    "appId": "mc.glched.glasslauncher",
-    "productName": "Glass Launcher",
+    "appId": "com.glchedmc.saturnclient",
+    "productName": "Saturn Client",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -56,15 +58,19 @@
     ],
     "mac": {
       "category": "public.app-category.games",
-      "icon": "build/icon.png",
+      "icon": "build/icon.icns",
       "identity": null,
       "hardenedRuntime": false,
       "target": [
         "zip"
       ],
       "extendInfo": {
-        "NSRequiresAquaSystemAppearance": false
-      }
+        "NSRequiresAquaSystemAppearance": false,
+        "NSMicrophoneUsageDescription": "Saturn Client needs the microphone so voice chat mods like Simple Voice Chat can hear you in game.",
+        "CFBundleDisplayName": "Saturn Client"
+      },
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     }
   }
 }
