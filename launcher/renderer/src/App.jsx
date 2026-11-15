@@ -15,12 +15,14 @@ import Skins from './views/Skins';
 import Cosmetics from './views/Cosmetics';
 import Host from './views/Host';
 import Friends from './views/Friends';
+import Games from './views/Games';
 import { SaturnMark } from './components/brand';
 
 const NAV = [
   ['home', 'Play', 'home'],
   ['library', 'Library', 'library'],
   ['discover', 'Discover', 'discover'],
+  ['games', 'Games', 'gamepad'],
   ['skins', 'Skins', 'shirt'],
   ['cosmetics', 'Cosmetics', 'crown'],
   ['friends', 'Friends', 'peers'],
@@ -31,7 +33,7 @@ const NAV = [
 ];
 const TITLES = {
   home: ['Play', null], library: ['Library', 'Your instances and servers'], discover: ['Discover', 'Mods, packs and shaders from every platform'],
-  schematics: ['Schematics', 'Builds for the selected instance'],
+  schematics: ['Schematics', 'Builds for the selected instance'], games: ['Games', 'Your installed Steam games and more'],
   skins: ['Skins', 'Your look, in 3D'], cosmetics: ['Cosmetics', 'Capes, hats and wings'], host: ['Host World', 'Play your world with friends'], friends: ['Friends', 'Chat and play together'],
   studio: ['Grok Studio', 'Upgrade mods to the latest Minecraft'], settings: ['Settings', null], instance: ['Instance', null],
 };
@@ -163,7 +165,7 @@ export default function App() {
   };
 
   const [title, sub] = TITLES[route] || TITLES.home;
-  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host, friends: Friends };
+  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host, friends: Friends, games: Games };
   const View = views[route] || Home;
   const isMac = isElectron && navigator.userAgent.includes('Mac');
   const isLinux = isElectron && !isMac && navigator.userAgent.includes('Linux');
