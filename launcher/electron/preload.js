@@ -2,7 +2,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const METHODS = [
-  'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions',
+  'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions', 'loadersFor', 'perfPackInfo', 'setPerfPack', 'builtinModules',
   'listInstances', 'createInstance', 'updateInstance', 'removeInstance', 'launch',
   'searchMods', 'installMod', 'removeMod', 'toggleMod', 'checkMods',
   'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',

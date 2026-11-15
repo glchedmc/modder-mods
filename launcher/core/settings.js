@@ -13,6 +13,8 @@ const DEFAULTS = {
   javaPath: '',
   closeOnLaunch: false,
   showSnapshots: false,
+  showOldVersions: false, // old_beta / old_alpha in the version picker
+  performancePack: true, // Sodium + compatible optimization mods on Fabric instances
   theme: 'auto', // auto | light | dark
   accent: '#7aa8ff',
   glassStrength: process.platform === 'linux' ? 0.45 : 0.75, // 0 = solid panels, no blur

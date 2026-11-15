@@ -105,7 +105,7 @@ const emit = (channel, data) => { if (win && !win.isDestroyed()) win.webContents
 
 // Every renderer call goes through this allow-list; secrets are write-only from the UI.
 const METHODS = [
-  'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions',
+  'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions', 'loadersFor', 'perfPackInfo', 'setPerfPack', 'builtinModules',
   'listInstances', 'createInstance', 'updateInstance', 'removeInstance', 'launch',
   'searchMods', 'installMod', 'removeMod', 'toggleMod', 'checkMods',
   'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',

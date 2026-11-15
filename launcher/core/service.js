@@ -16,6 +16,7 @@ const modrinth = require('./mods/modrinth');
 const curseforge = require('./mods/curseforge');
 const installer = require('./mods/install');
 const companion = require('./companion');
+const perfpack = require('./perfpack');
 const msa = require('./auth/msa');
 const { PortJob } = require('./grok/porter');
 const { redact, exists } = require('./util');
@@ -117,8 +118,16 @@ class LauncherService {
   }
 
   // ---------- versions ----------
-  async listVersions({ snapshots } = {}) { return mojang.listVersions({ snapshots }); }
+  async listVersions(opts = {}) {
+    // Defaults come from Settings (Show snapshots / Old versions); callers may override.
+    const s = await this.getSettings();
+    const snapshots = opts.snapshots === undefined ? s.showSnapshots : opts.snapshots;
+    const old = opts.old === undefined ? s.showOldVersions : opts.old;
+    return mojang.listVersions({ snapshots: Boolean(snapshots), old: Boolean(old) });
+  }
   loaderVersions(loader, mc) { return loaders.listLoaderVersions(loader, mc); }
+  /** Which loaders have a build for this Minecraft version (vanilla always does). */
+  loadersFor(mc) { return loaders.availableLoaders(mc); }
 
   // ---------- java ----------
   async javaFor(major) {
@@ -145,13 +154,15 @@ class LauncherService {
         }
       } else {
         const needJava = meta.loader === 'forge' || meta.loader === 'neoforge';
-        const javaPath = needJava ? await this.javaFor((await mojang.getVanillaVersion(this.dirs, meta.mcVersion)).javaVersion.majorVersion) : null;
+        const javaPath = needJava ? await this.javaFor(mojang.javaMajorFor(await mojang.getVanillaVersion(this.dirs, meta.mcVersion))) : null;
         const r = await loaders.installClientLoader(meta.loader, this.dirs, meta.mcVersion, meta.loaderVersion, { java: javaPath, onLog: (l) => this.emit('launch:log', { id: meta.id, line: l }) });
         meta.versionId = r.versionId; meta.loaderVersion = r.loaderVersion;
         if (meta.loader === 'fabric' || meta.loader === 'quilt') {
           // Fabric API is needed by most mods and by the companion.
           const plan = await installer.planModrinth(meta, FABRIC_API_PROJECT).catch(() => ({ plan: [] }));
           if (plan.plan.length) meta.mods.push(...(await installer.applyPlan(dir, meta, 'modrinth', plan.plan, { titles: { [FABRIC_API_PROJECT]: 'Fabric API' } })));
+          const r = await perfpack.sync(dir, meta, s, { onLog: (l) => this.emit('launch:log', { id: meta.id, line: l }) });
+          meta.mods = r.mods;
         }
       }
     } catch (e) {
@@ -217,18 +228,21 @@ class LauncherService {
     const progress = (p) => this.emit('launch:progress', { id, ...p });
     if (meta.type === 'server') return this.startServer(meta, dir);
     const vanilla = await mojang.getVanillaVersion(this.dirs, meta.mcVersion);
-    progress({ phase: `Java ${vanilla.javaVersion.majorVersion}`, done: 0, total: 1 });
-    const javaPath = await this.javaFor(vanilla.javaVersion.majorVersion);
+    const javaMajor = mojang.javaMajorFor(vanilla);
+    progress({ phase: `Java ${javaMajor}`, done: 0, total: 1 });
+    const javaPath = await this.javaFor(javaMajor);
     if (!meta.versionId) {
       const r = await loaders.installClientLoader(meta.loader, this.dirs, meta.mcVersion, meta.loaderVersion, { java: javaPath });
       meta.versionId = r.versionId; meta.loaderVersion = r.loaderVersion;
     }
     await this.syncCompanion(meta, dir);
+    await this.syncPerfPack(meta, dir, progress);
     await this.syncCosmeticsTo(meta, dir).catch(() => {});
     const account = await this.launchAccount();
     const { spec } = await launch.prepare({ dirs: this.dirs, instance: meta, instanceDir: dir, account, platform: this.platform, javaPath, progress });
     // Friends → Join: drop straight into the friend's world (Quick Play, 1.20+).
     if (opts && opts.server && /^[\w.-]+(:\d{1,5})?$/.test(String(opts.server))) spec.args.push('--quickPlayMultiplayer', String(opts.server));
+    else if (opts && opts.world && /^[\w .-]{1,64}$/.test(String(opts.world))) spec.args.push('--quickPlaySingleplayer', String(opts.world));
     progress({ phase: 'Starting', done: 1, total: 1 });
     this.emit('launch:log', { id, line: redact(launch.redactedCommand(spec).join(' ')) });
     const started = Date.now();
@@ -269,11 +283,53 @@ class LauncherService {
     const s = await this.getSettings();
     const jar = await this.companionJar();
     if (!jar) return;
-    const entry = await companion.install(dir, meta, jar, s.companion);
+    const glass = s.reduceTransparency ? 0 : Math.max(0, Math.min(1, Number(s.glassStrength)));
+    const entry = await companion.install(dir, meta, jar, s.companion, { menuGlass: Number.isFinite(glass) ? glass : 0.6, menuAccent: s.accent });
     if (entry && !meta.mods.some((m) => m.source === 'companion' && m.file === entry.file)) {
       meta.mods = [...meta.mods.filter((m) => m.source !== 'companion'), entry];
       await instances.save(this.dirs, meta);
     }
+  }
+
+  /** Sodium & friends (Settings → Performance, per instance in Built-in mods). Never blocks a launch. */
+  async syncPerfPack(meta, dir, progress = () => {}) {
+    if (!perfpack.supports(meta)) return null;
+    const s = await this.getSettings();
+    const r = await perfpack.sync(dir, meta, s, { onLog: (l) => { progress({ phase: l, done: 0, total: 1 }); this.emit('launch:log', { id: meta.id, line: l }); } });
+    for (const e of r.errors) this.emit('launch:log', { id: meta.id, line: `[Saturn] Performance pack: ${e}` });
+    if (r.added.length || r.mods !== meta.mods) { meta.mods = r.mods; await instances.save(this.dirs, meta); }
+    return r;
+  }
+
+  async perfPackInfo(id) {
+    const s = await this.getSettings();
+    const meta = id ? await instances.get(this.dirs, id) : null;
+    return {
+      global: s.performancePack !== false,
+      instance: meta ? (meta.performancePack === undefined ? null : meta.performancePack) : null,
+      supported: meta ? perfpack.supports(meta) : true,
+      on: meta ? perfpack.wanted(meta, s) : s.performancePack !== false,
+      mods: perfpack.PACK.map((p) => {
+        const m = meta && meta.mods.find((x) => x.projectId === p.projectId);
+        return { ...p, installed: Boolean(m), enabled: Boolean(m && m.enabled), version: m ? m.versionName : null, removed: Boolean(meta && (meta.performancePackRemoved || []).includes(p.projectId)) };
+      }),
+    };
+  }
+
+  /** value: true/false for this instance, or null to follow Settings. Applies immediately (downloads when turning on). */
+  async setPerfPack(id, value) {
+    const meta = await instances.get(this.dirs, id);
+    meta.performancePack = value === null ? undefined : Boolean(value);
+    if (value === true) meta.performancePackRemoved = [];
+    await instances.save(this.dirs, meta);
+    await this.syncPerfPack(meta, this.instanceDir(id));
+    return this.perfPackInfo(id);
+  }
+
+  /** Standalone Saturn mods in this instance that the companion steps aside for. */
+  async builtinModules(id) {
+    const meta = await instances.get(this.dirs, id);
+    return { supported: companion.supports(meta), enabled: Boolean(meta.companion), standalone: companion.standaloneIn(meta.mods || []) };
   }
 
   async companionJar() {
@@ -319,6 +375,8 @@ class LauncherService {
     const meta = await instances.get(this.dirs, instanceId);
     const mod = meta.mods.find((m) => m.file === file);
     if (mod) await installer.removeMod(this.instanceDir(instanceId), mod);
+    // Removing a performance-pack mod by hand means "don't put it back".
+    if (mod && mod.pack === 'performance') meta.performancePackRemoved = [...new Set([...(meta.performancePackRemoved || []), mod.projectId])];
     meta.mods = meta.mods.filter((m) => m.file !== file);
     await instances.save(this.dirs, meta);
   }
