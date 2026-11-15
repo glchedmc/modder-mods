@@ -23,7 +23,7 @@ if (!gradle) {
 }
 execFileSync(gradle, ['build', '--no-daemon', '--console=plain'], { cwd: mod, stdio: 'inherit' });
 const libs = path.join(mod, 'build', 'libs');
-const jar = fs.readdirSync(libs).find((f) => /^glass-companion-[\d.]+\.jar$/.test(f));
+const jar = fs.readdirSync(libs).filter((f) => /^glass-companion-[\d.]+\.jar$/.test(f)).sort().pop();
 const out = path.join(root, 'resources', 'companion');
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
