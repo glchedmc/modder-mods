@@ -28,7 +28,16 @@ import net.fabricmc.loader.api.FabricLoader;
  * in-game menu and the launcher's settings page always list the same toggles.
  */
 public final class CompanionConfig {
-	public record Feature(String key, String group, String label, String type, double min, double max, double step, JsonElement def, String hint) {
+	public record Feature(String key, String group, String label, String type, double min, double max, double step, JsonElement def, String hint, List<String> standalone, String from, List<String> options, List<String> labels) {
+		/** The standalone mod that replaces this built-in module, when it is installed. */
+		public String standaloneLoaded() {
+			for (String id : standalone) {
+				if (FabricLoader.getInstance().isModLoaded(id)) {
+					return id;
+				}
+			}
+			return null;
+		}
 	}
 
 	public record Group(String id, String label) {
@@ -77,7 +86,11 @@ public final class CompanionConfig {
 						o.has("max") ? o.get("max").getAsDouble() : 1,
 						o.has("step") ? o.get("step").getAsDouble() : 1,
 						o.get("default"),
-						o.has("hint") ? o.get("hint").getAsString() : ""));
+						o.has("hint") ? o.get("hint").getAsString() : "",
+						o.has("standalone") ? o.getAsJsonArray("standalone").asList().stream().map(JsonElement::getAsString).toList() : List.of(),
+						o.has("from") ? o.get("from").getAsString() : "",
+						o.has("options") ? o.getAsJsonArray("options").asList().stream().map(JsonElement::getAsString).toList() : List.of(),
+						o.has("labels") ? o.getAsJsonArray("labels").asList().stream().map(JsonElement::getAsString).toList() : List.of()));
 			}
 		} catch (IOException ex) {
 			throw new IllegalStateException(ex);
@@ -129,6 +142,54 @@ public final class CompanionConfig {
 		} catch (IOException ex) {
 			GlassCompanion.LOGGER.warn("[glass-companion] could not save config", ex);
 		}
+	}
+
+	private static final Map<String, Boolean> STANDALONE = new java.util.HashMap<>();
+
+	/**
+	 * A built-in module is on when its toggle is on and the standalone Saturn mod
+	 * that does the same thing is not installed (so nothing draws twice).
+	 */
+	public static boolean module(String key) {
+		if (!bool(key)) {
+			return false;
+		}
+		return !STANDALONE.computeIfAbsent(key, k -> {
+			for (Feature f : FEATURES) {
+				if (f.key().equals(k)) {
+					return f.standaloneLoaded() != null;
+				}
+			}
+			return false;
+		});
+	}
+
+	/** HUD editor position for an element as screen fractions, or null for the default spot. */
+	public static float[] layout(String element) {
+		JsonElement e = VALUES.get("hudLayout");
+		if (e == null || !e.isJsonObject() || !e.getAsJsonObject().has(element)) {
+			return null;
+		}
+		try {
+			JsonArray a = e.getAsJsonObject().getAsJsonArray(element);
+			return new float[] {a.get(0).getAsFloat(), a.get(1).getAsFloat()};
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+	public static void setLayout(String element, float[] xy) {
+		JsonElement e = VALUES.get("hudLayout");
+		JsonObject o = e != null && e.isJsonObject() ? e.getAsJsonObject().deepCopy() : new JsonObject();
+		if (xy == null) {
+			o.remove(element);
+		} else {
+			JsonArray a = new JsonArray();
+			a.add(Math.round(xy[0] * 10000) / 10000.0);
+			a.add(Math.round(xy[1] * 10000) / 10000.0);
+			o.add(element, a);
+		}
+		VALUES.put("hudLayout", o);
 	}
 
 	public static boolean bool(String key) {
