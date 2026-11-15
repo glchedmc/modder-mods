@@ -8,7 +8,7 @@ export default function Home({ app }) {
   if (!inst) {
     return (
       <div className="empty glass card view-enter">
-        <h3>Welcome to Glass</h3>
+        <h3>Welcome to Saturn</h3>
         <p className="muted">Create your first instance to get playing.</p>
         <button className="btn primary" onClick={() => go('library', { create: true })}><Icon name="plus" size={16} /> New Instance</button>
       </div>

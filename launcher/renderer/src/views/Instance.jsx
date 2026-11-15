@@ -15,13 +15,46 @@ function StatusPill({ c }) {
   return <span className="pill green"><span className="dot" />Compatible</span>;
 }
 
+function RenameRow({ mod, onSave, onCancel }) {
+  const [name, setName] = useState(mod.displayName || mod.title);
+  const [renameFile, setRenameFile] = useState(false);
+  const [file, setFile] = useState(mod.file.replace(/\.jar$/i, ''));
+  const save = () => onSave({ name: name.trim() === mod.title ? null : name, ...(renameFile ? { fileName: file } : {}) });
+  const key = (e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onCancel(); };
+  return (
+    <div className="grow rename-row">
+      <div className="row" style={{ gap: 8 }}>
+        <div className="field" style={{ flex: 1 }}><Icon name="pencil" size={14} /><input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={key} placeholder={mod.title} aria-label="Display name" /></div>
+        <button className="btn primary sm" onClick={save}>Save</button>
+        <button className="btn sm ghost" onClick={onCancel}>Cancel</button>
+      </div>
+      <label className="row faint rename-file" style={{ gap: 8, marginTop: 6, fontSize: 12 }} title="Renames the .jar on disk too">
+        <input type="checkbox" checked={renameFile} onChange={(e) => setRenameFile(e.target.checked)} disabled={mod.source === 'companion'} />Rename file too
+        {renameFile && <span className="field" style={{ height: 28, flex: 1 }}><input value={file} onChange={(e) => setFile(e.target.value)} onKeyDown={key} spellCheck={false} aria-label="File name" /><span className="faint">.jar</span></span>}
+      </label>
+    </div>
+  );
+}
+
 export default function Instance({ app }) {
   const inst = app.instances.find((i) => i.id === app.params.id) || app.selected;
   const [tab, setTab] = useState(app.params.tab || 'mods');
   const [q, setQ] = useState('');
+  const [editing, setEditing] = useState(null);
   useEffect(() => { if (app.params.tab) setTab(app.params.tab); }, [app.params.tab]);
   if (!inst) return null;
-  const mods = (inst.mods || []).filter((m) => !q || m.title.toLowerCase().includes(q.toLowerCase()));
+  const mods = (inst.mods || []).filter((m) => !q || `${m.displayName || ''} ${m.title}`.toLowerCase().includes(q.toLowerCase()));
+  const undoWith = (newFile, undo) => async () => { try { await api.renameMod(inst.id, newFile, undo); app.refresh(); app.toast('Undone', 'ok'); } catch (e) { app.toast(e.message, 'error'); } };
+  const rename = async (m, opts) => {
+    try {
+      const r = await api.renameMod(inst.id, m.file, opts);
+      setEditing(null); app.refresh();
+      app.toast(`Renamed to ${r.mod.displayName || r.mod.title}`, 'ok', { label: 'Undo', run: undoWith(r.mod.file, r.undo) });
+    } catch (e) { app.toast(e.message, 'error'); }
+  };
+  const reset = async (m) => {
+    try { const r = await api.resetModName(inst.id, m.file); app.refresh(); app.toast(`Reset to ${r.mod.title}`, 'ok', { label: 'Undo', run: undoWith(r.mod.file, r.undo) }); } catch (e) { app.toast(e.message, 'error'); }
+  };
   const loader = LOADER_META[inst.loader];
   const toggle = async (m, v) => { await api.toggleMod(inst.id, m.file, v); app.refresh(); };
   return (
@@ -60,13 +93,16 @@ export default function Instance({ app }) {
               return (
                 <div key={m.file} className="list-row">
                   <ModIcon src={m.icon} title={m.title} />
-                  <div className="grow">
-                    <div className="row" style={{ gap: 8 }}><b className="truncate">{m.title}</b><span className="faint" style={{ fontSize: 12 }}>{m.versionName}</span></div>
-                    <div className="faint truncate" style={{ fontSize: 12, marginTop: 2 }}>{m.file}{m.dependencyOf ? ' · dependency' : ''}</div>
-                  </div>
+                  {editing === m.file ? <RenameRow mod={m} onSave={(o) => rename(m, o)} onCancel={() => setEditing(null)} /> : (
+                  <div className="grow" onDoubleClick={() => setEditing(m.file)}>
+                    <div className="row" style={{ gap: 8 }}><b className="truncate">{m.displayName || m.title}</b><span className="faint" style={{ fontSize: 12 }}>{m.versionName}</span>{(m.displayName || m.originalFile) && <span className="pill renamed" title={`Original: ${m.title}${m.originalFile ? ` · ${m.originalFile}` : ''}`}>Renamed</span>}</div>
+                    <div className="faint truncate" style={{ fontSize: 12, marginTop: 2 }}>{m.file}{m.displayName ? ` · ${m.title}` : ''}{m.dependencyOf ? ' · dependency' : ''}</div>
+                  </div>)}
                   <StatusPill c={c} />
                   {c && c.status === 'needs-port' && <button className="btn grok sm" onClick={() => app.startPort(inst, m)}><Icon name="sparkles" size={14} />Upgrade to {inst.mcVersion}</button>}
                   {c && c.status === 'update' && <button className="btn sm" onClick={() => app.toast(`Updating ${m.title}…`)}><Icon name="download" size={14} />Update</button>}
+                  {editing !== m.file && (m.displayName || m.originalFile) && <button className="btn ghost sm icon-btn" title="Reset name" onClick={() => reset(m)}><Icon name="reset" size={15} /></button>}
+                  {editing !== m.file && <button className="btn ghost sm icon-btn" title="Rename" onClick={() => setEditing(m.file)}><Icon name="pencil" size={15} /></button>}
                   {m.source !== 'companion' && <Switch on={m.enabled !== false} onChange={(v) => toggle(m, v)} label={`Enable ${m.title}`} />}
                   {m.source !== 'companion' && <button className="btn ghost sm icon-btn" onClick={async () => { await api.removeMod(inst.id, m.file); app.refresh(); }}><Icon name="trash" size={15} /></button>}
                 </div>
@@ -118,7 +154,7 @@ export default function Instance({ app }) {
             <Range value={inst.memoryMb} min={1024} max={16384} step={512} onChange={(v) => app.updateInstance(inst.id, { memoryMb: v })} format={(v) => `${(v / 1024).toFixed(1)} GB`} /></div>
           <div className="setting"><div className="label"><b>Java arguments</b><span>Advanced. Added after memory flags.</span></div>
             <div className="field" style={{ width: 300 }}><input defaultValue={inst.jvmArgs || ''} placeholder="-XX:+UseZGC" onBlur={(e) => app.updateInstance(inst.id, { jvmArgs: e.target.value })} /></div></div>
-          <div className="setting"><div className="label"><b>Glass Companion</b><span>HUD, zoom and tooltip features (Fabric/Quilt 26.3).</span></div>
+          <div className="setting"><div className="label"><b>Saturn Companion</b><span>HUD, zoom, tooltips and cosmetics (Fabric/Quilt 26.3).</span></div>
             <Switch on={inst.companion} onChange={(v) => app.updateInstance(inst.id, { companion: v })} /></div>
           <div className="setting"><div className="label"><b>Delete instance</b><span>Removes worlds, mods and settings in this instance.</span></div>
             <button className="btn danger" onClick={() => app.removeInstance(inst.id)}><Icon name="trash" size={15} />Delete</button></div>

@@ -4,12 +4,34 @@ import { api, on, isElectron } from '../api';
 import { Switch, Range, Segmented, Sheet } from '../components/ui';
 import { BackgroundPicker } from '../components/backgrounds';
 import CompanionSettings from './CompanionSettings';
+import saturnIcon from '../../../build/icon.svg';
+import wireframeIcon from '../../../build/dock/wireframe.svg';
+import crystalIcon from '../../../build/dock/crystal.svg';
+
+const APP_ICONS = [['saturn', 'Saturn', saturnIcon], ['wireframe', 'Wireframe', wireframeIcon], ['crystal', 'Crystal', crystalIcon]];
+
+function MicRow({ app }) {
+  const [mic, setMic] = useState(null);
+  useEffect(() => { api.micStatus().then(setMic).catch(() => {}); }, []);
+  if (!mic) return null;
+  return (
+    <>
+      <div className="setting"><div className="label"><b title="Minecraft runs inside Saturn Client, so macOS asks once for the launcher.">Microphone access</b><span>{mic.hint} Minecraft uses the launcher's permission.</span></div>
+        <span className={`pill ${mic.tone}`} title="Voice chat mods use this permission"><Icon name="mic" size={11} />{mic.label}</span>
+        {mic.status === 'not-determined' && <button className="btn primary sm" onClick={async () => setMic(await api.requestMic())}>Allow</button>}
+        {(mic.status === 'denied' || mic.status === 'restricted') && <button className="btn sm" onClick={() => api.openMicSettings()}>Open System Settings</button>}
+        {mic.status === 'granted' && <button className="btn sm ghost" onClick={async () => setMic(await api.micStatus())}><Icon name="refresh" size={13} />Check</button>}
+      </div>
+    </>
+  );
+}
 
 const SECTIONS = [
   ['general', 'General', 'settings'],
   ['appearance', 'Appearance', 'palette'],
   ['game', 'Java & Memory', 'java'],
   ['companion', 'Companion Mod', 'sparkles'],
+  ['voice', 'Voice & Mic', 'mic'],
   ['keys', 'Accounts & Keys', 'key'],
   ['about', 'About', 'info'],
 ];
@@ -108,6 +130,15 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Glass intensity</b><span>Blur and translucency of panels.</span></div><Range value={s.glassIntensity} min={0.2} max={1} step={0.05} onChange={(v) => set({ glassIntensity: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
             <div className="setting"><div className="label"><b>Reduce motion</b><span>Turns off animations.</span></div><Switch on={s.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></div>
           </div>
+          <div className="group-title">App icon & sidebar</div>
+          <div className="group glass">
+            <div className="setting"><div className="label"><b>Dock icon</b><span>Shown in the Dock while Saturn runs.</span></div>
+              <div className="row icon-picker">{APP_ICONS.map(([k, l, src]) => (
+                <button key={k} className={`icon-choice ${(s.appIcon || 'saturn') === k ? 'on' : ''}`} title={l} onClick={async () => { await api.setAppIcon(k); set({ appIcon: k }); }}><img src={src} alt="" /><span>{l}</span></button>
+              ))}</div></div>
+            <div className="setting"><div className="label"><b>Collapse sidebar</b><span>Toggle any time with ⌘\.</span></div><Switch on={s.sidebarCollapsed} onChange={(v) => set({ sidebarCollapsed: v })} /></div>
+            <div className="setting"><div className="label"><b>Collapsed sidebar shows</b><span>Icons only, or hide it completely.</span></div><Segmented value={s.sidebarMode} onChange={(v) => set({ sidebarMode: v })} options={[{ value: 'icons', label: 'Icons' }, { value: 'hidden', label: 'Nothing' }]} /></div>
+          </div>
           <div className="group-title">Backgrounds</div>
           <div className="group glass">
             <div className="setting"><div className="label"><b>Blur</b><span>Softens the scene.</span></div><Range value={s.backgroundBlur ?? 0} min={0} max={1} step={0.05} onChange={(v) => set({ backgroundBlur: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
@@ -149,6 +180,16 @@ export default function Settings({ app }) {
           </div>
         </>}
 
+        {section === 'voice' && <>
+          <div className="group-title"><Icon name="mic" size={13} />Microphone</div>
+          <div className="group glass">
+            <MicRow app={app} />
+            <div className="setting"><div className="label"><b>Simple Voice Chat</b><span>Add proximity voice to the selected instance.</span></div>
+              <button className="btn sm" disabled={!app.selected || app.selected.type === 'server'} onClick={async () => { try { await api.installHostingMod(app.selected.id, 'voicechat'); app.refresh(); app.toast('Simple Voice Chat installed', 'ok'); } catch (e) { app.toast(e.message, 'error'); } }}><Icon name="download" size={14} />Install for {app.selected ? app.selected.name : '…'}</button></div>
+            <div className="setting"><div className="label"><b>Voice chat key</b><span>Push-to-talk is set inside the game (default: Caps Lock).</span></div></div>
+          </div>
+        </>}
+
         {section === 'companion' && <CompanionSettings app={app} instance={app.selected && app.selected.companion ? app.selected : null} />}
 
         {section === 'keys' && <>
@@ -164,8 +205,15 @@ export default function Settings({ app }) {
           </div>
           <div className="group-title"><Icon name="lock" size={13} />API keys · stored in the macOS Keychain</div>
           <div className="group glass">
-            <KeyRow name="xaiApiKey" label="xAI (Grok) API key" hint="Powers Upgrade to 26.3." link="https://console.x.ai" isSet={app.secrets.xaiApiKey} onSave={app.setSecret} />
+            <KeyRow name="xaiApiKey" label="xAI (Grok) API key" hint="Powers Upgrade to 26.3 and Grok skins." link="https://console.x.ai" isSet={app.secrets.xaiApiKey} onSave={app.setSecret} />
+            <KeyRow name="openaiApiKey" label="OpenAI (ChatGPT) API key" hint="Optional. Generates skins with gpt-image-1." link="https://platform.openai.com/api-keys" isSet={app.secrets.openaiApiKey} onSave={app.setSecret} />
             <KeyRow name="curseforgeApiKey" label="CurseForge API key" hint={app.secrets.curseforgeApiKeyCustom ? "Your key overrides the built-in one." : app.secrets.curseforgeApiKeyBuiltin ? "Using the built-in key. Paste your own to override it." : "Enables CurseForge in Discover."} link="https://console.curseforge.com" isSet={app.secrets.curseforgeApiKeyCustom} builtin={app.secrets.curseforgeApiKeyBuiltin && !app.secrets.curseforgeApiKeyCustom} onSave={app.setSecret} />
+          </div>
+          <div className="group-title">AI skins</div>
+          <div className="group glass">
+            <div className="setting"><div className="label"><b>Default provider</b></div><Segmented value={s.skinAiProvider} onChange={(v) => set({ skinAiProvider: v })} options={[{ value: 'grok', label: 'Grok' }, { value: 'openai', label: 'ChatGPT' }]} /></div>
+            <div className="setting"><div className="label"><b>Grok image model</b></div><div className="field" style={{ width: 220 }}><input defaultValue={s.skinAiGrokModel} onBlur={(e) => set({ skinAiGrokModel: e.target.value.trim() || 'grok-imagine-image-2.0' })} spellCheck={false} /></div></div>
+            <div className="setting"><div className="label"><b>OpenAI image model</b></div><div className="field" style={{ width: 220 }}><input defaultValue={s.skinAiOpenaiModel} onBlur={(e) => set({ skinAiOpenaiModel: e.target.value.trim() || 'gpt-image-1' })} spellCheck={false} /></div></div>
           </div>
           <div className="group-title">Grok</div>
           <div className="group glass">
@@ -177,9 +225,9 @@ export default function Settings({ app }) {
 
         {section === 'about' && (
           <div className="group glass">
-            <div className="setting"><div className="label"><b>Glass Launcher</b><span>Version {info.version} · {info.platform} {info.arch}</span></div></div>
+            <div className="setting"><div className="label"><b>Saturn Client</b><span>Version {info.version} · {info.platform} {info.arch}</span></div></div>
             <div className="setting"><div className="label"><b>Data folder</b><span>{info.dataDir}</span></div></div>
-            <div className="setting"><div className="label"><b>Source</b><span>github.com/glchedmc/modder-mods/tree/main/launcher</span></div></div>
+            <div className="setting"><div className="label"><b>Source</b><span>github.com/glchedmc/modder-mods/tree/glass-launcher/launcher</span></div></div>
             <div className="setting"><div className="label"><b>Not affiliated with Mojang or Microsoft.</b><span>Minecraft is a trademark of Mojang Synergies AB.</span></div></div>
           </div>
         )}

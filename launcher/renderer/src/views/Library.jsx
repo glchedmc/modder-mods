@@ -64,7 +64,7 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
       {(loader === 'fabric' || loader === 'quilt') && mc === '26.3' && (
         <div className="glass flat" style={{ marginTop: 16, padding: '11px 14px', borderRadius: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
           <Icon name="sparkles" size={18} style={{ color: '#c4b2ff' }} />
-          <span style={{ fontSize: 12.5 }} className="muted">Glass Companion and Fabric API will be installed for HUD, zoom, compact tooltips and more.</span>
+          <span style={{ fontSize: 12.5 }} className="muted">Saturn Companion and Fabric API will be installed for HUD, zoom, compact tooltips and more.</span>
         </div>
       )}
       <div className="foot">
