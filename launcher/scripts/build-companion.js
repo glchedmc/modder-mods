@@ -14,6 +14,12 @@ const logo = path.join(mod, 'src/main/resources/assets/glass-companion/textures/
 fs.mkdirSync(path.dirname(logo), { recursive: true });
 fs.writeFileSync(logo, Buffer.from(fs.readFileSync(path.join(mod, 'saturn_logo.png.b64'), 'utf8'), 'base64'));
 
+// Saturn title panorama (built-in resource pack): six cube faces rendered by scripts/make-panorama.js.
+const pano = path.join(mod, 'src/main/resources/resourcepacks/saturn_panorama/assets/minecraft/textures/gui/title/background');
+if (!fs.existsSync(path.join(pano, 'panorama_5.png')) || fs.statSync(path.join(pano, 'panorama_5.png')).mtimeMs < fs.statSync(path.join(__dirname, 'make-panorama.js')).mtimeMs) {
+  require('./make-panorama').render(pano);
+}
+
 let gradle = process.env.GRADLE;
 if (!gradle) {
   const local = path.join(root, '.tools', 'gradle-9.8.2', 'bin', 'gradle');
