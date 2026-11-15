@@ -132,7 +132,7 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava',
-  'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame',
+  'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame', 'setGameVisibility',
   'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
   'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
