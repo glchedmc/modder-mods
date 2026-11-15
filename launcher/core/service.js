@@ -22,8 +22,14 @@ const { redact, exists } = require('./util');
 const defaults = require('./defaults');
 const schematics = require('./schematics');
 const backgrounds = require('./backgrounds');
+const { SkinLibrary } = require('./skins/library');
+const skinApi = require('./skins/mojang');
+const skinAi = require('./skins/ai');
+const { CosmeticsStore, syncInstance: syncCosmetics, IN_GAME } = require('./cosmetics');
+const hosting = require('./hosting');
+const { renameMod: renameModFile, resetMod: resetModFile } = require('./mods/rename');
 
-const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey'];
+const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
 
 class LauncherService {
@@ -37,10 +43,13 @@ class LauncherService {
     this.jobs = new Map();
     this.running = new Map();
     this.authAbort = null;
+    this.skins = new SkinLibrary(this.dirs.skins);
+    this.cosmetics = new CosmeticsStore(this.dirs.cosmetics);
+    this.hosts = new Map(); // instanceId -> {address, since}
   }
 
   async init() {
-    for (const d of ['versions', 'libraries', 'assets', 'instances', 'runtimes', 'cache', 'tools', 'ports', 'backgrounds']) await fsp.mkdir(this.dirs[d], { recursive: true });
+    for (const d of ['versions', 'libraries', 'assets', 'instances', 'runtimes', 'cache', 'tools', 'ports', 'backgrounds', 'skins', 'cosmetics']) await fsp.mkdir(this.dirs[d], { recursive: true });
     return this;
   }
 
@@ -111,7 +120,7 @@ class LauncherService {
       if (meta.type === 'server') {
         const { build } = await loaders.installServer(meta.loader, dir, meta.mcVersion, meta.loaderVersion);
         meta.loaderVersion = build;
-        if (partial.eula) await fsp.writeFile(path.join(dir, 'eula.txt'), `# Accepted in Glass Launcher ${new Date().toISOString()}\neula=true\n`);
+        if (partial.eula) await fsp.writeFile(path.join(dir, 'eula.txt'), `# Accepted in Saturn Client ${new Date().toISOString()}\neula=true\n`);
       } else {
         const needJava = meta.loader === 'forge' || meta.loader === 'neoforge';
         const javaPath = needJava ? await this.javaFor((await mojang.getVanillaVersion(this.dirs, meta.mcVersion)).javaVersion.majorVersion) : null;
@@ -193,15 +202,17 @@ class LauncherService {
       meta.versionId = r.versionId; meta.loaderVersion = r.loaderVersion;
     }
     await this.syncCompanion(meta, dir);
+    await this.syncCosmeticsTo(meta, dir).catch(() => {});
     const account = await this.launchAccount();
     const { spec } = await launch.prepare({ dirs: this.dirs, instance: meta, instanceDir: dir, account, platform: this.platform, javaPath, progress });
     progress({ phase: 'Starting', done: 1, total: 1 });
     this.emit('launch:log', { id, line: redact(launch.redactedCommand(spec).join(' ')) });
     const started = Date.now();
     const child = launch.start(spec, {
-      onLine: (line) => this.emit('launch:log', { id, line: redact(line) }),
+      onLine: (line) => { this.emit('launch:log', { id, line: redact(line) }); this.watchHostLine(id, line); },
       onExit: async (code) => {
         this.running.delete(id);
+        if (this.hosts.has(id)) { this.hosts.delete(id); this.emit('host:update', { id, address: null, state: 'stopped' }); }
         const m = await instances.get(this.dirs, id);
         await instances.save(this.dirs, { ...m, playTimeSec: (m.playTimeSec || 0) + Math.round((Date.now() - started) / 1000) });
         this.emit('launch:state', { id, state: 'exited', code, error: code ? `Minecraft exited with code ${code}. See the Logs tab.` : null });
@@ -293,6 +304,28 @@ class LauncherService {
     await instances.save(this.dirs, meta);
   }
 
+  async renameMod(instanceId, file, opts = {}) {
+    if (this.running.has(instanceId) && opts.fileName) throw new Error('Close the game before renaming mod files.');
+    const meta = await instances.get(this.dirs, instanceId);
+    const i = meta.mods.findIndex((m) => m.file === file);
+    if (i === -1) throw new Error('Mod not found');
+    const { mod, undo } = await renameModFile(this.instanceDir(instanceId), meta.mods[i], opts, meta.mods);
+    meta.mods[i] = mod;
+    await instances.save(this.dirs, meta);
+    return { mod, undo };
+  }
+
+  async resetModName(instanceId, file) {
+    if (this.running.has(instanceId)) throw new Error('Close the game before resetting mod names.');
+    const meta = await instances.get(this.dirs, instanceId);
+    const i = meta.mods.findIndex((m) => m.file === file);
+    if (i === -1) throw new Error('Mod not found');
+    const { mod, undo } = await resetModFile(this.instanceDir(instanceId), meta.mods[i], meta.mods);
+    meta.mods[i] = mod;
+    await instances.save(this.dirs, meta);
+    return { mod, undo };
+  }
+
   async checkMods(instanceId) {
     const meta = await instances.get(this.dirs, instanceId);
     return installer.checkCompatibility(this.instanceDir(instanceId), meta);
@@ -330,6 +363,125 @@ class LauncherService {
       url: file.url, fileName: file.name, server: meta.type === 'server',
     });
     return { added, ...(await this.listSchematics(instanceId)) };
+  }
+
+  // ---------- skins ----------
+  listSkins() { return this.skins.list(); }
+  addSkin(entry) { return this.skins.add(entry); }
+  updateSkin(id, patch) { return this.skins.update(id, patch); }
+  removeSkin(id) { return this.skins.remove(id); }
+  selectSkin(id) { return this.skins.select(id); }
+
+  async signedInAccount() {
+    const raw = await this.secrets.get('accounts');
+    const list = raw ? JSON.parse(raw) : [];
+    if (!list.length || list[0].type !== 'msa') {
+      const e = new Error('Sign in with Microsoft to change your skin on Minecraft servers. Microsoft sign-in is waiting on Mojang approval.');
+      e.code = 'SIGNED_OUT'; throw e;
+    }
+    return this.launchAccount();
+  }
+
+  async accountProfile() {
+    const raw = await this.secrets.get('accounts');
+    if (!raw || !JSON.parse(raw).length) return { signedIn: false, skins: [], capes: [] };
+    const acc = await this.signedInAccount();
+    const p = await skinApi.profile(acc.accessToken);
+    return { signedIn: true, name: p.name, skins: p.skins || [], capes: p.capes || [] };
+  }
+
+  async applySkin(id) {
+    const acc = await this.signedInAccount();
+    const skin = await this.skins.get(id);
+    await skinApi.uploadSkin(acc.accessToken, skin.png, skin.variant);
+    return { applied: true, name: skin.name };
+  }
+
+  async setAccountCape(capeId) {
+    const acc = await this.signedInAccount();
+    await skinApi.showCape(acc.accessToken, capeId || null);
+    return this.accountProfile();
+  }
+
+  skinAiProviders() {
+    return Object.fromEntries(Object.entries(skinAi.PROVIDERS).map(([k, v]) => [k, { label: v.label, model: v.model, secret: v.secret, keyUrl: v.keyUrl }]));
+  }
+
+  async generateSkinImage({ provider = 'grok', prompt, mode = 'character' } = {}) {
+    const p = skinAi.PROVIDERS[provider];
+    if (!p) throw new Error('Unknown provider');
+    const s = await this.getSettings();
+    const apiKey = await this.secrets.get(p.secret);
+    const model = provider === 'grok' ? s.skinAiGrokModel : s.skinAiOpenaiModel;
+    return skinAi.generate({ provider, apiKey, prompt, mode, model });
+  }
+
+  // ---------- cosmetics ----------
+  async getCosmetics() {
+    return { ...(await this.cosmetics.get()), customUrls: await this.cosmetics.customCapeUrls(), inGame: IN_GAME };
+  }
+
+  async setCosmetics(patch = {}) {
+    const cur = await this.cosmetics.get();
+    const next = { ...cur, ...patch, equipped: { ...cur.equipped, ...(patch.equipped || {}) } };
+    if (patch.capePng !== undefined) await this.cosmetics.setCapeTexture(patch.capePng);
+    delete next.capePng;
+    await this.cosmetics.save(next);
+    return this.getCosmetics();
+  }
+
+  async addCustomCape(png, name) { await this.cosmetics.addCustomCape(png, name); return this.getCosmetics(); }
+  async removeCustomCape(id) { await this.cosmetics.removeCustomCape(id); return this.getCosmetics(); }
+
+  async syncCosmeticsTo(meta, dir) {
+    if (!companion.supports(meta) || !meta.companion) return null;
+    const lib = await this.skins.read();
+    let skin = null;
+    if (lib.selected) { try { skin = await this.skins.get(lib.selected); } catch { skin = null; } }
+    return syncCosmetics(dir, this.cosmetics, { skin });
+  }
+
+  // ---------- hosting ----------
+  watchHostLine(id, line) {
+    const address = hosting.parseJoinAddress(line);
+    if (address) {
+      this.hosts.set(id, { address, since: new Date().toISOString() });
+      this.emit('host:update', { id, address, state: 'hosting' });
+    } else if (this.hosts.has(id) && hosting.parseHostStopped(line)) {
+      this.hosts.delete(id);
+      this.emit('host:update', { id, address: null, state: 'stopped' });
+    }
+  }
+
+  async hostStatus(instanceId) {
+    const meta = await instances.get(this.dirs, instanceId);
+    const check = hosting.canHost(meta);
+    const dir = this.instanceDir(instanceId);
+    const out = {
+      ...check,
+      running: this.running.has(instanceId),
+      address: (this.hosts.get(instanceId) || {}).address || null,
+      e4mcInstalled: hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc'),
+      voiceChatInstalled: hosting.hasMod(meta, hosting.VOICE_CHAT.projectId, 'voicechat'),
+      lan: hosting.lanAddresses(),
+    };
+    if (meta.type === 'server') out.port = await hosting.serverPort(dir);
+    return out;
+  }
+
+  async installHostingMod(instanceId, which = 'e4mc') {
+    const m = which === 'voicechat' ? hosting.VOICE_CHAT : hosting.E4MC;
+    const r = await this.installMod(instanceId, 'modrinth', m.projectId, m.title);
+    return { ...r, status: await this.hostStatus(instanceId) };
+  }
+
+  async hostWorld(instanceId) {
+    const meta = await instances.get(this.dirs, instanceId);
+    const check = hosting.canHost(meta);
+    if (!check.ok) throw new Error(check.reason);
+    if (check.kind === 'e4mc' && !hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc')) await this.installMod(instanceId, 'modrinth', hosting.E4MC.projectId, hosting.E4MC.title);
+    if (!this.running.has(instanceId)) await this.launch(instanceId);
+    return this.hostStatus(instanceId);
   }
 
   // ---------- Grok ports ----------

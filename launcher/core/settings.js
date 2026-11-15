@@ -30,6 +30,13 @@ const DEFAULTS = {
   modSources: { modrinth: true, curseforge: true },
   companion: companion.DEFAULT_CONFIG,
   selectedInstance: null,
+  sidebarCollapsed: false,
+  sidebarMode: 'icons', // icons | hidden (what "collapsed" means)
+  appIcon: 'saturn', // saturn | wireframe | crystal (dock icon)
+  micPrompted: false,
+  skinAiProvider: 'grok', // grok | openai
+  skinAiGrokModel: 'grok-imagine-image-2.0',
+  skinAiOpenaiModel: 'gpt-image-1',
 };
 
 function merge(base, over) {
