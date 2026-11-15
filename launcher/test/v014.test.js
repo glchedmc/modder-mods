@@ -467,7 +467,7 @@ test('service: host status, voice setup per provider, P2P wiring and storage inf
 
 test('linux packaging: AppImage/deb/tar.gz targets keep the CurseForge key as an extra resource', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-  assert.equal(pkg.version, '0.1.4');
+  assert.match(pkg.version, /^0\.1\.([4-9]|\d{2,})$/);
   const targets = pkg.build.linux.target.map((t) => (typeof t === 'string' ? t : t.target));
   for (const t of ['AppImage', 'deb', 'tar.gz']) assert.ok(targets.includes(t), t);
   assert.ok(pkg.build.extraResources.some((r) => r.from === 'core/builtin-private.js'));
