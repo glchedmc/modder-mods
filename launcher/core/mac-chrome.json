@@ -1,0 +1,10 @@
+{
+  "_comment": "macOS window chrome geometry (px). The traffic lights are 12px buttons, 8px apart, so the group is 52px wide. The app has 14px outer padding, so the sidebar's glass starts at (14, 14).",
+  "appPadding": 14,
+  "trafficLights": { "x": 30, "y": 34 },
+  "buttonSize": 12,
+  "buttonGap": 8,
+  "dragHeight": 52,
+  "collapsedWidth": 84,
+  "hiddenToolbarInset": 112
+}

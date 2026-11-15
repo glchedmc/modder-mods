@@ -451,7 +451,6 @@ input[type='color']::-webkit-color-swatch-wrapper { padding: 0; } input[type='co
 .app.sb-icons .account-chip { justify-content: center; padding: 8px 0; gap: 0; }
 .app.sb-hidden { grid-template-columns: 0px 1fr; column-gap: 0; }
 .app.sb-hidden .sidebar { opacity: 0; transform: translateX(-40px) scale(0.98); pointer-events: none; padding-left: 0; padding-right: 0; border-width: 0; }
-.app.mac.sb-hidden .toolbar { padding-left: 92px; }
 body.reduce-motion .app, body.reduce-motion .sidebar { transition: none; }
 
 /* ---------- toasts with actions ---------- */
@@ -756,3 +755,16 @@ body.glass-solid .stage-glow { opacity: 0.4; }
 .context-menu button { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 0; background: transparent; color: var(--text); border-radius: 8px; font-size: 13px; text-align: left; cursor: pointer; }
 .context-menu button:hover { background: rgba(var(--accent-rgb), 0.3); }
 .context-title { font-size: 11.5px; color: var(--text-3); padding: 4px 10px 6px; font-weight: 650; }
+
+/* ---------- macOS window controls (0.1.10) ----------
+   Geometry lives in core/mac-chrome.json: traffic lights at (30, 34) from the window's
+   top-left = 16px inside the sidebar glass, centered in a 52px drag strip. The logo starts
+   below that strip, and the collapsed sidebar is wide enough (84px) for the 52px group. */
+.app.mac .sidebar { padding-top: 0; }
+.app.mac .traffic { height: 52px; padding: 0; margin: 0 -12px 2px; flex: none; -webkit-app-region: drag; }
+.app.mac .traffic i { display: none; }
+.app.mac.sb-icons { grid-template-columns: 84px 1fr; }
+.app.mac.sb-icons .sidebar { padding-top: 0; }
+.app.mac.sb-icons .traffic { margin: 0 -10px 2px; }
+.app.mac.sb-icons .brand { justify-content: center; padding: 0 0 16px; }
+.app.mac.sb-hidden .toolbar { padding-left: 112px; }

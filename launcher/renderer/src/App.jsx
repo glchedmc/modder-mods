@@ -167,8 +167,10 @@ export default function App() {
   const [title, sub] = TITLES[route] || TITLES.home;
   const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host, friends: Friends, games: Games };
   const View = views[route] || Home;
-  const isMac = isElectron && navigator.userAgent.includes('Mac');
-  const isLinux = isElectron && !isMac && navigator.userAgent.includes('Linux');
+  // Browser previews can render either OS's chrome with ?platform=mac|linux (design screenshots).
+  const previewPlatform = !isElectron ? new URLSearchParams(window.location.search).get('platform') : null;
+  const isMac = previewPlatform ? previewPlatform === 'mac' : isElectron && navigator.userAgent.includes('Mac');
+  const isLinux = previewPlatform ? previewPlatform === 'linux' : isElectron && !isMac && navigator.userAgent.includes('Linux');
   const collapsed = Boolean(settings.sidebarCollapsed);
   const iconsOnly = collapsed && settings.sidebarMode !== 'hidden';
   const hidden = collapsed && settings.sidebarMode === 'hidden';

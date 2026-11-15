@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage, Notification } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const MAC_CHROME = require('../core/mac-chrome.json');
 const { LauncherService } = require('../core/service');
 const backgrounds = require('../core/backgrounds');
 const { exists } = require('../core/util');
@@ -91,7 +92,8 @@ function createWindow(appIcon) {
     title: 'Saturn Client',
     autoHideMenuBar: !mac,
     titleBarStyle: mac ? 'hiddenInset' : 'default',
-    trafficLightPosition: { x: 26, y: 26 },
+    // Inside the sidebar's glass, centered in its 52px drag strip (see core/mac-chrome.json).
+    trafficLightPosition: mac ? MAC_CHROME.trafficLights : undefined,
     vibrancy: mac ? 'under-window' : undefined,
     visualEffectState: 'active',
     backgroundColor: mac ? '#00000000' : '#1b1e52',
