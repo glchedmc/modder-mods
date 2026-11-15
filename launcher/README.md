@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.7-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.8-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.7-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.7-x86_64.AppImage && ./SaturnClient-0.1.7-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.8-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.8-x86_64.AppImage && ./SaturnClient-0.1.8-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,15 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.8: Games tab (Steam)
+
+- **Games** in the sidebar lists the Steam games installed on this computer, read straight from Steam's local files: `libraryfolders.vdf` for every library (old and new formats, extra drives included) and each `appmanifest_*.acf` for the name, size and install state. Steam tools (Proton, Steam Linux Runtime, redistributables) are hidden.
+- Steam is found at `~/Library/Application Support/Steam` on Mac, and on Linux at `~/.steam/steam`, `~/.local/share/Steam`, the Flatpak folder (`~/.var/app/com.valvesoftware.Steam`) and the snap folder.
+- Glass tiles with cover art: Steam's own local cache first, then the public Steam CDN (`library_600x900`, falling back to `header.jpg`), cached in the launcher's cache folder. Offline or missing art shows a colored tile with the game's initials.
+- Search, sort by name / recently played / size, and pin favorites to the top.
+- **Play** hands the game to Steam (`steam://rungameid/<appid>`); **Open in Steam** opens its library page. **Add game manually** adds any non-Steam app or executable (.app on Mac; binary, script, AppImage or .desktop on Linux).
+- No Steam login and no API key. If Steam isn't installed the tab says so and you can still add games by hand.
 
 ## What's new in 0.1.7: waypoints, resizable HUD, held item count, space title screen
 

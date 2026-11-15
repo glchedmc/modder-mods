@@ -198,6 +198,7 @@ const shots = [
     await p.selectOption('.sheet select >> nth=0', '26.4-snapshot-8');
     await p.waitForTimeout(900);
   }],
+  ['60-games-tab', '#/games', async (p) => { await p.waitForSelector('.game-tile'); await p.waitForTimeout(3500); }],
   ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 

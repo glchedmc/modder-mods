@@ -259,6 +259,31 @@ const mockApi = {
   },
   p2pClose: async (sid) => { mock.p2p = mock.p2p.filter((x) => x.id !== sid); emit('p2p:update', mock.p2p); return true; },
   lookupPlayerSkin: async (q) => { await wait(600); const s = starterSkin('explorer'); return { uuid: '069a79f4-44e9-4726-a5be-fca90e38aaf5', name: /^[0-9a-f-]{32,36}$/i.test(q) ? 'Notch' : q, model: 'classic', skin: toDataUrl(s.image), cape: null, legacy: false }; },
+  // Games tab sample data (browser previews / screenshots only).
+  listGames: async () => {
+    if (!mock.games) {
+      const d = (n) => now - n * 86400e3;
+      mock.games = [
+        { id: 'steam:1145360', source: 'steam', appid: '1145360', name: 'Hades', sizeBytes: 15.2 * 1024 ** 3, lastPlayed: d(1), favorite: true, installed: true },
+        { id: 'steam:413150', source: 'steam', appid: '413150', name: 'Stardew Valley', sizeBytes: 0.6 * 1024 ** 3, lastPlayed: d(3), favorite: false, installed: true },
+        { id: 'steam:367520', source: 'steam', appid: '367520', name: 'Hollow Knight', sizeBytes: 9.1 * 1024 ** 3, lastPlayed: d(12), favorite: false, installed: true },
+        { id: 'steam:646570', source: 'steam', appid: '646570', name: 'Slay the Spire', sizeBytes: 1.1 * 1024 ** 3, lastPlayed: d(30), favorite: true, installed: true },
+        { id: 'steam:504230', source: 'steam', appid: '504230', name: 'Celeste', sizeBytes: 1.3 * 1024 ** 3, lastPlayed: d(60), favorite: false, installed: true },
+        { id: 'steam:892970', source: 'steam', appid: '892970', name: 'Valheim', sizeBytes: 1.6 * 1024 ** 3, lastPlayed: null, favorite: false, installed: true },
+        { id: 'steam:1794680', source: 'steam', appid: '1794680', name: 'Vampire Survivors', sizeBytes: 0.5 * 1024 ** 3, lastPlayed: d(5), favorite: false, installed: true },
+        { id: 'manual:a1b2c3', source: 'manual', name: 'Prism Launcher', path: '/Applications/Prism Launcher.app', sizeBytes: 0, lastPlayed: d(2), favorite: false, installed: true },
+      ];
+    }
+    return { steamInstalled: true, steamRoots: ['~/Library/Application Support/Steam'], libraries: [], games: mock.games };
+  },
+  gameArt: async (appid) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_600x900.jpg`,
+  setGameFavorite: async (id, on) => { const g = (mock.games || []).find((x) => x.id === id); if (g) g.favorite = on; return true; },
+  addManualGame: async ({ name, path }) => { const e = { id: `manual:${Math.random().toString(16).slice(2, 8)}`, source: 'manual', name: name || path, path, sizeBytes: 0, installed: true, favorite: false }; mock.games.push(e); return e; },
+  removeManualGame: async (id) => { mock.games = mock.games.filter((x) => x.id !== id); return true; },
+  renameManualGame: async (id, name) => ({ id, name }),
+  playGame: async () => true,
+  openGameInSteam: async () => true,
+  pickGameExecutable: async () => '/Applications/Minecraft.app',
   storageInfo: async () => ({ mode: 'keychain', label: 'macOS Keychain' }),
   detectJava: async () => [{ path: '/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java', major: 25, managed: false }],
   copyText: async () => true,
