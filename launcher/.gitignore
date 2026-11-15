@@ -14,3 +14,4 @@ secrets/
 *.key
 build/icon.icns
 resources/dock/
+companion-mod/src/main/resources/assets/glass-companion/textures/gui/saturn_logo.png

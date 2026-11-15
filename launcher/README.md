@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.5-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.6-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.5-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.5-x86_64.AppImage && ./SaturnClient-0.1.5-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.6-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.6-x86_64.AppImage && ./SaturnClient-0.1.6-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,30 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.6: built-in mods (Lunar-style)
+
+Saturn's companion mod (Fabric 26.3) now carries Lunar-style modules you toggle in game with **Right Shift**
+or in the launcher under **Settings → Built-in mods** (per instance: **Instance → Built-in mods**).
+
+- **Shulker box preview**: hover a shulker box to see its 9×3 contents, tinted to the box colour.
+- **Armor status**: worn armor, main hand and offhand with durability as a number, percent or bar; gold under 50%, red under 20%. Vertical or horizontal.
+- **HUD editor**: drag any HUD element (Pause → Edit HUD, or the button in the mod menu). Right-click resets one, "Reset all" resets everything.
+- **Sound arrows** (Echo Arrow, off by default): with Subtitles on, each subtitle line gets a compass arrow turned to the sound's exact bearing,
+  its distance and ▲/▼ when it is above or below you, instead of vanilla's `<` `>`. Modes: Ring (arrows around the crosshair), Subtitles, or Both.
+- Also built in: freelook (hold Left Alt), block info, effect timers, item counter, death point, durability alert, saturation, day counter,
+  chunk borders (F7), clear weather (visual), inventory sort, furnace gauge, keystrokes, CPS/FPS/coords and more.
+- If a standalone copy of one of our mods (Echo Arrow, Brew Clock, Tidy Key, ...) is installed, its built-in module stays off so nothing doubles up.
+- Not built in: Crate Glow and Wall Peek (ESP / x-ray style).
+- **Saturn title screen and pause menu**: liquid glass panels, the Saturn ring logo and quick places (Singleplayer, Multiplayer, Friends,
+  Mods, Settings, Quit). They follow **Settings → Appearance → Glass strength**; "Vanilla menu" is always one click away.
+- **Performance pack** (on by default for Fabric/Quilt): Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and Sodium Extra
+  from Modrinth, only when they have a build for the instance's version. Toggle it globally or per instance. ModernFix is left out (no 26.3 build).
+- **Versions**: Settings → General → Show snapshots / Old versions now drive the New Instance picker (old beta/alpha included). Java is picked
+  from each version's manifest (Java 8 for old versions) and downloaded when missing. The loader picker greys out loaders with no build for the chosen version.
+
+Dev checks: `node scripts/ingame-test.js <dataDir> "" <jdkDir>` builds a real `modder-test` instance (companion + performance pack) and starts it;
+`node scripts/snapshot-test.js <dataDir>` launch-tests the newest snapshot on vanilla and Fabric.
 
 ## What's new in 0.1.5: Friends & chat
 
