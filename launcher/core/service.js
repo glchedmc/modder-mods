@@ -27,13 +27,17 @@ const skinApi = require('./skins/mojang');
 const skinAi = require('./skins/ai');
 const { CosmeticsStore, syncInstance: syncCosmetics, IN_GAME } = require('./cosmetics');
 const hosting = require('./hosting');
+const upnp = require('./upnp');
+const tailscale = require('./tailscale');
+const { lookupSkin } = require('./skins/lookup');
 const { renameMod: renameModFile, resetMod: resetModFile } = require('./mods/rename');
 
-const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey'];
+const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey', 'duckdnsToken'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
 
 class LauncherService {
-  constructor({ dataDir, cipher, resourcesDir, emit = () => {}, platform = currentPlatform(), extraJavaDirs = [] }) {
+  constructor({ dataDir, cipher, resourcesDir, emit = () => {}, platform = currentPlatform(), extraJavaDirs = [], secretStorage = null }) {
+    this.secretStorage = secretStorage || { mode: 'keychain', label: 'macOS Keychain' };
     this.dirs = layout(dataDir);
     this.secrets = new SecretStore(this.dirs.secrets, cipher);
     this.resourcesDir = resourcesDir;
@@ -46,7 +50,13 @@ class LauncherService {
     this.skins = new SkinLibrary(this.dirs.skins);
     this.cosmetics = new CosmeticsStore(this.dirs.cosmetics);
     this.hosts = new Map(); // instanceId -> {address, since}
+    this.lanPorts = new Map(); // instanceId -> Open to LAN port seen in the log
+    this.p2p = null; // P2PManager, attached by the Electron main process
+    this.net = { publicIp: null, checkedAt: 0, upnp: null };
   }
+
+  /** Called by electron/main.js once the WebRTC worker is up. */
+  attachP2P(manager) { this.p2p = manager; return manager; }
 
   async init() {
     for (const d of ['versions', 'libraries', 'assets', 'instances', 'runtimes', 'cache', 'tools', 'ports', 'backgrounds', 'skins', 'cosmetics']) await fsp.mkdir(this.dirs[d], { recursive: true });
@@ -105,7 +115,7 @@ class LauncherService {
   // ---------- java ----------
   async javaFor(major) {
     const s = await this.getSettings();
-    return java.ensureJava(this.dirs, major, this.platform, { override: s.javaPath || undefined, extraDirs: this.extraJavaDirs, onStatus: (t) => this.emit('launch:progress', { phase: t, done: 0, total: 1 }) });
+    return java.ensureJava(this.dirs, major, this.platform, { override: s.javaPath || undefined, extraDirs: [...this.extraJavaDirs, ...(await java.systemJavaDirs(this.platform))], onStatus: (t) => this.emit('launch:progress', { phase: t, done: 0, total: 1 }) });
   }
   javaHomeOf(bin) { return path.dirname(path.dirname(bin)); }
 
@@ -121,6 +131,10 @@ class LauncherService {
         const { build } = await loaders.installServer(meta.loader, dir, meta.mcVersion, meta.loaderVersion);
         meta.loaderVersion = build;
         if (partial.eula) await fsp.writeFile(path.join(dir, 'eula.txt'), `# Accepted in Saturn Client ${new Date().toISOString()}\neula=true\n`);
+        if (meta.loader === 'fabric-server') {
+          const plan = await installer.planModrinth(meta, FABRIC_API_PROJECT).catch(() => ({ plan: [] }));
+          if (plan.plan.length) meta.mods.push(...(await installer.applyPlan(dir, meta, 'modrinth', plan.plan, { titles: { [FABRIC_API_PROJECT]: 'Fabric API' } })));
+        }
       } else {
         const needJava = meta.loader === 'forge' || meta.loader === 'neoforge';
         const javaPath = needJava ? await this.javaFor((await mojang.getVanillaVersion(this.dirs, meta.mcVersion)).javaVersion.majorVersion) : null;
@@ -443,30 +457,137 @@ class LauncherService {
 
   // ---------- hosting ----------
   watchHostLine(id, line) {
+    const port = hosting.parseLanPort(line);
+    if (port) { this.lanPorts.set(id, port); this.emit('host:update', { id, lanPort: port, state: 'lan' }); }
     const address = hosting.parseJoinAddress(line);
     if (address) {
       this.hosts.set(id, { address, since: new Date().toISOString() });
       this.emit('host:update', { id, address, state: 'hosting' });
-    } else if (this.hosts.has(id) && hosting.parseHostStopped(line)) {
+    } else if ((this.hosts.has(id) || this.lanPorts.has(id)) && hosting.parseHostStopped(line)) {
       this.hosts.delete(id);
+      this.lanPorts.delete(id);
       this.emit('host:update', { id, address: null, state: 'stopped' });
     }
+  }
+
+  /** The port friends' connections are forwarded to on this computer. */
+  async hostGamePort(instanceId) {
+    try {
+      const meta = await instances.get(this.dirs, instanceId);
+      if (meta.type === 'server') return hosting.serverPort(this.instanceDir(instanceId));
+    } catch { /* fall through */ }
+    return this.lanPorts.get(instanceId) || hosting.MC_PORT;
+  }
+
+  async hostVoicePort(instanceId) {
+    try {
+      const meta = await instances.get(this.dirs, instanceId);
+      return (await hosting.readVoiceConfig(meta, this.instanceDir(instanceId))).port;
+    } catch { return hosting.VOICE_PORT; }
   }
 
   async hostStatus(instanceId) {
     const meta = await instances.get(this.dirs, instanceId);
     const check = hosting.canHost(meta);
     const dir = this.instanceDir(instanceId);
+    const s = await this.getSettings();
+    const voice = await hosting.readVoiceConfig(meta, dir);
     const out = {
       ...check,
+      provider: hosting.PROVIDERS[s.hostProvider] ? s.hostProvider : hosting.DEFAULT_PROVIDER,
+      providers: Object.values(hosting.PROVIDERS),
       running: this.running.has(instanceId),
       address: (this.hosts.get(instanceId) || {}).address || null,
+      lanPort: this.lanPorts.get(instanceId) || null,
       e4mcInstalled: hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc'),
       voiceChatInstalled: hosting.hasMod(meta, hosting.VOICE_CHAT.projectId, 'voicechat'),
+      voice: { configured: voice.exists, port: voice.port, voiceHost: voice.voiceHost, file: path.relative(dir, voice.file) },
       lan: hosting.lanAddresses(),
+      ddnsName: s.hostDdnsName || '',
+      platform: process.platform,
+      p2pAvailable: Boolean(this.p2p),
     };
-    if (meta.type === 'server') out.port = await hosting.serverPort(dir);
+    out.port = meta.type === 'server' ? await hosting.serverPort(dir) : (out.lanPort || hosting.MC_PORT);
     return out;
+  }
+
+  /** Public IP (cached for 5 minutes) and the LAN picture. Never throws. */
+  async hostNetwork({ refresh = false } = {}) {
+    if (refresh || !this.net.publicIp || Date.now() - this.net.checkedAt > 5 * 60 * 1000) {
+      try {
+        const r = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(5000) });
+        this.net.publicIp = (await r.json()).ip || null;
+      } catch {
+        try { this.net.publicIp = (await (await fetch('https://icanhazip.com', { signal: AbortSignal.timeout(5000) })).text()).trim() || null; } catch { this.net.publicIp = null; }
+      }
+      this.net.checkedAt = Date.now();
+    }
+    return { publicIp: this.net.publicIp, lan: hosting.lanAddresses(), upnp: this.net.upnp };
+  }
+
+  /** Opens TCP (game) + UDP (voice) on the router with UPnP. */
+  async upnpMap(instanceId) {
+    const mcPort = await this.hostGamePort(instanceId);
+    const voicePort = await this.hostVoicePort(instanceId);
+    const netInfo = await this.hostNetwork();
+    const result = { ok: false, mcPort, voicePort, mappings: [], publicIp: netInfo.publicIp };
+    const gw = await upnp.findGateway({ timeout: 2500 });
+    if (!gw) {
+      result.error = 'No UPnP router found. UPnP may be off; use the router steps below.';
+      result.steps = hosting.routerSteps({ localIp: (netInfo.lan[0] || {}).address, mcPort, voicePort });
+      this.net.upnp = result;
+      return result;
+    }
+    const gwHost = new URL(gw.location).hostname;
+    const localIp = (await upnp.localAddressFor(gwHost)) || (netInfo.lan[0] || {}).address;
+    result.gateway = gwHost;
+    result.localIp = localIp;
+    try { result.routerIp = await gw.externalIp(); } catch { result.routerIp = null; }
+    Object.assign(result, hosting.natVerdict({ publicIp: netInfo.publicIp, routerIp: result.routerIp }));
+    for (const [port, protocol, what] of [[mcPort, 'TCP', 'Minecraft'], [voicePort, 'UDP', 'Voice chat']]) {
+      try {
+        await gw.addPortMapping({ externalPort: port, internalPort: port, protocol, internalClient: localIp, description: `Saturn Client ${what}` });
+        result.mappings.push({ port, protocol, what, ok: true });
+      } catch (e) {
+        result.mappings.push({ port, protocol, what, ok: false, error: e.message });
+      }
+    }
+    result.ok = result.mappings.every((m) => m.ok);
+    if (!result.ok) result.steps = hosting.routerSteps({ localIp, mcPort, voicePort, gateway: gwHost });
+    if (result.cgnat) result.warning = 'Your router does not have your public IP (carrier-grade NAT), so forwarded ports cannot be reached from the internet. Use Direct (free) or Tailscale.';
+    this.net.upnp = result;
+    return result;
+  }
+
+  async upnpUnmap(instanceId) {
+    const mcPort = await this.hostGamePort(instanceId);
+    const voicePort = await this.hostVoicePort(instanceId);
+    const gw = await upnp.findGateway({ timeout: 2500 });
+    if (!gw) return { ok: false, error: 'No UPnP router found.' };
+    for (const [port, protocol] of [[mcPort, 'TCP'], [voicePort, 'UDP']]) { try { await gw.deletePortMapping({ externalPort: port, protocol }); } catch { /* already gone */ } }
+    this.net.upnp = null;
+    return { ok: true };
+  }
+
+  tailscaleStatus() { return tailscale.status(); }
+
+  /** Saves the optional dynamic DNS name; updates DuckDNS when a token is set. */
+  async setDdnsName(name) {
+    const clean = hosting.cleanDdnsName(name);
+    await this.setSettings({ hostDdnsName: clean });
+    return { ddnsName: clean };
+  }
+
+  async updateDdns() {
+    const s = await this.getSettings();
+    const sub = hosting.duckdnsSubdomain(s.hostDdnsName);
+    if (!sub) throw new Error('Automatic updates work with name.duckdns.org names. Other services: keep their updater running.');
+    const token = await this.secrets.get('duckdnsToken');
+    if (!token) { const e = new Error('Add your DuckDNS token first.'); e.code = 'NO_DDNS_TOKEN'; throw e; }
+    const r = await fetch(`https://www.duckdns.org/update?domains=${encodeURIComponent(sub)}&token=${encodeURIComponent(token)}&ip=`, { signal: AbortSignal.timeout(8000) });
+    const txt = (await r.text()).trim();
+    if (txt !== 'OK') throw new Error('DuckDNS rejected the update. Check the name and token.');
+    return { ok: true, name: s.hostDdnsName };
   }
 
   async installHostingMod(instanceId, which = 'e4mc') {
@@ -475,14 +596,80 @@ class LauncherService {
     return { ...r, status: await this.hostStatus(instanceId) };
   }
 
+  /**
+   * One click: installs Simple Voice Chat (26.3 Fabric/Paper build from
+   * Modrinth) and writes voice_host for the chosen provider.
+   */
+  async enableVoiceChat(instanceId, provider) {
+    let meta = await instances.get(this.dirs, instanceId);
+    const s = await this.getSettings();
+    const prov = provider || s.hostProvider || hosting.DEFAULT_PROVIDER;
+    const check = hosting.canHost(meta);
+    if (!check.ok) throw new Error(check.reason);
+    let installed = false;
+    if (!hosting.hasMod(meta, hosting.VOICE_CHAT.projectId, 'voicechat')) {
+      await this.installMod(instanceId, 'modrinth', hosting.VOICE_CHAT.projectId, hosting.VOICE_CHAT.title);
+      installed = true;
+      meta = await instances.get(this.dirs, instanceId);
+    }
+    const ctx = { ddnsName: s.hostDdnsName || null };
+    if (prov === 'direct' && !ctx.ddnsName) ctx.publicIp = (await this.hostNetwork()).publicIp;
+    if (prov === 'tailscale') ctx.tailscale = await tailscale.status();
+    const dir = this.instanceDir(instanceId);
+    const cur = await hosting.readVoiceConfig(meta, dir);
+    const voiceHost = hosting.voiceHostFor(prov, { ...ctx, voicePort: cur.port });
+    const voice = await hosting.writeVoiceConfig(meta, dir, { voiceHost });
+    const notes = {
+      p2p: 'voice_host left blank: friends reach voice through their Direct tunnel at localhost.',
+      tailscale: voiceHost ? `Friends on your tailnet connect voice to ${voiceHost}.` : 'Start Tailscale, then enable voice again to fill in your Tailscale address.',
+      direct: voiceHost ? `Friends connect voice to ${voiceHost}. Forward UDP ${voice.port} too.` : 'Could not find your public IP; voice uses the address friends join with.',
+      e4mc: 'e4mc does not carry voice. Only friends on your Wi-Fi will have voice chat.',
+    };
+    return { installed, provider: prov, voice: { port: voice.port, voiceHost: voice.voiceHost, file: path.relative(dir, voice.file) }, note: notes[prov] || '', status: await this.hostStatus(instanceId) };
+  }
+
   async hostWorld(instanceId) {
     const meta = await instances.get(this.dirs, instanceId);
     const check = hosting.canHost(meta);
     if (!check.ok) throw new Error(check.reason);
-    if (check.kind === 'e4mc' && !hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc')) await this.installMod(instanceId, 'modrinth', hosting.E4MC.projectId, hosting.E4MC.title);
+    const s = await this.getSettings();
+    if (s.hostProvider === 'e4mc' && check.kind === 'e4mc' && !hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc')) await this.installMod(instanceId, 'modrinth', hosting.E4MC.projectId, hosting.E4MC.title);
     if (!this.running.has(instanceId)) await this.launch(instanceId);
     return this.hostStatus(instanceId);
   }
+
+  // ---------- Direct (free) P2P ----------
+  needP2P() { if (!this.p2p) throw new Error('Direct connections are not available in this build.'); return this.p2p; }
+  p2pList() { return this.p2p ? this.p2p.list() : []; }
+  async p2pCreateInvite(instanceId) {
+    const meta = await instances.get(this.dirs, instanceId);
+    return this.needP2P().createInvite({ instanceId, name: meta.name, mcVersion: meta.mcVersion });
+  }
+  p2pAcceptReply(sessionId, code) { return this.needP2P().acceptReply(sessionId, code); }
+  async p2pJoin(code) {
+    const acc = (await this.listAccounts().catch(() => []))[0];
+    return this.needP2P().join(code, { name: (acc && acc.name) || 'Friend' });
+  }
+  p2pClose(sessionId) { return this.needP2P().close(sessionId); }
+
+  // ---------- system ----------
+  storageInfo() { return { ...this.secretStorage }; }
+
+  /** Java runtimes this computer already has (launcher-managed + system). */
+  async detectJava() {
+    const dirs = [];
+    try { for (const e of await fsp.readdir(this.dirs.runtimes)) dirs.push({ dir: path.join(this.dirs.runtimes, e), managed: true }); } catch { /* none yet */ }
+    for (const d of await java.systemJavaDirs(this.platform)) dirs.push({ dir: d, managed: false });
+    const out = [];
+    for (const d of dirs) {
+      const bin = await java.javaBinIn(d.dir, this.platform);
+      if (bin) out.push({ path: bin, major: await java.javaMajor(bin), managed: d.managed });
+    }
+    return out;
+  }
+
+  // ---------- player skins ----------
+  lookupPlayerSkin(query) { return lookupSkin(query); }
 
   // ---------- Grok ports ----------
   async startPort(instanceId, mod) {

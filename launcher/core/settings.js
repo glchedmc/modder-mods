@@ -15,7 +15,8 @@ const DEFAULTS = {
   showSnapshots: false,
   theme: 'auto', // auto | light | dark
   accent: '#7aa8ff',
-  glassIntensity: 0.7,
+  glassStrength: process.platform === 'linux' ? 0.45 : 0.75, // 0 = solid panels, no blur
+  reduceTransparency: false,
   reduceMotion: false,
   backgroundId: 'highlands',
   backgroundSolid: '#1b1e52',
@@ -37,6 +38,8 @@ const DEFAULTS = {
   skinAiProvider: 'grok', // grok | openai
   skinAiGrokModel: 'grok-imagine-image-2.0',
   skinAiOpenaiModel: 'gpt-image-1',
+  hostProvider: 'p2p', // p2p | tailscale | direct | e4mc
+  hostDdnsName: '',
 };
 
 function merge(base, over) {
@@ -47,15 +50,24 @@ function merge(base, over) {
   return out;
 }
 
+/** Older builds stored a 0.2–1 "glassIntensity"; carry it over once. */
+function upgrade(raw) {
+  const r = { ...(raw || {}) };
+  if (r.glassStrength === undefined && typeof r.glassIntensity === 'number') r.glassStrength = r.glassIntensity;
+  delete r.glassIntensity;
+  if (typeof r.glassStrength === 'number') r.glassStrength = Math.min(1, Math.max(0, r.glassStrength));
+  return r;
+}
+
 async function load(file) {
-  return merge(DEFAULTS, await readJsonSafe(file, {}));
+  return merge(DEFAULTS, upgrade(await readJsonSafe(file, {})));
 }
 
 async function save(file, settings) {
   await fsp.mkdir(path.dirname(file), { recursive: true });
-  const clean = merge(DEFAULTS, settings);
+  const clean = merge(DEFAULTS, upgrade(settings));
   await fsp.writeFile(file, JSON.stringify(clean, null, 2));
   return clean;
 }
 
-module.exports = { DEFAULTS, load, save, merge };
+module.exports = { DEFAULTS, load, save, merge, upgrade };
