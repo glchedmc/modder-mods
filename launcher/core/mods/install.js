@@ -10,11 +10,12 @@ const { download, sha1File } = require('../net');
 function loaderCandidates(loader) {
   // Quilt runs most Fabric mods; NeoForge does not run Forge mods on modern versions.
   if (loader === 'quilt') return ['quilt', 'fabric'];
+  if (loader === 'fabric-server') return ['fabric'];
   return [loader];
 }
 
 function contentFolder(instance, projectType) {
-  if (instance.type === 'server') return 'plugins';
+  if (instance.type === 'server') return instance.loader === 'fabric-server' ? 'mods' : 'plugins';
   return { mod: 'mods', resourcepack: 'resourcepacks', shader: 'shaderpacks', datapack: 'datapacks' }[projectType] || 'mods';
 }
 
@@ -29,7 +30,7 @@ function pickVersion(versions) {
  * recursively, skipping ones already installed. Returns {plan, missing}.
  */
 async function planModrinth(instance, projectId, { versionId, api = modrinth } = {}) {
-  const loaders = instance.type === 'server' ? [instance.loader] : loaderCandidates(instance.loader);
+  const loaders = instance.type === 'server' && instance.loader !== 'fabric-server' ? [instance.loader] : loaderCandidates(instance.loader);
   const gameVersions = [instance.mcVersion];
   const installed = new Set((instance.mods || []).filter((m) => m.source === 'modrinth').map((m) => m.projectId));
   const plan = [];

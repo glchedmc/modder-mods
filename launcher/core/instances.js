@@ -17,7 +17,7 @@ function instanceDir(dirs, id) {
 
 function defaults(partial) {
   const loader = partial.loader || 'fabric';
-  const server = loader === 'paper' || loader === 'purpur';
+  const server = loader === 'paper' || loader === 'purpur' || loader === 'fabric-server';
   return {
     id: partial.id,
     name: partial.name || 'New Instance',
@@ -72,7 +72,7 @@ async function create(dirs, partial) {
   while (await exists(instanceDir(dirs, id))) id = `${slugify(partial.name)}-${crypto.randomBytes(2).toString('hex')}`;
   const meta = defaults({ ...partial, id });
   const dir = instanceDir(dirs, id);
-  const sub = meta.type === 'server' ? ['plugins', 'config'] : ['mods', 'config', 'resourcepacks', 'shaderpacks', 'saves', 'screenshots', 'schematics'];
+  const sub = meta.type === 'server' ? [meta.loader === 'fabric-server' ? 'mods' : 'plugins', 'config'] : ['mods', 'config', 'resourcepacks', 'shaderpacks', 'saves', 'screenshots', 'schematics'];
   for (const s of sub) await fsp.mkdir(path.join(dir, s), { recursive: true });
   return save(dirs, meta);
 }

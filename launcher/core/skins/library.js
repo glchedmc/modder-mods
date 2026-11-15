@@ -58,6 +58,12 @@ class SkinLibrary {
     if (!s) throw new Error('Skin not found');
     if (patch.name !== undefined) s.name = cleanName(patch.name);
     if (patch.variant !== undefined && VARIANTS.includes(patch.variant)) s.variant = patch.variant;
+    if (patch.png !== undefined) {
+      const buf = toBuffer(patch.png);
+      s.legacy = validateSkin(buf).legacy;
+      await fsp.writeFile(this.fileFor(id), buf);
+      s.editedAt = new Date().toISOString();
+    }
     await this.write(data);
     return s;
   }
