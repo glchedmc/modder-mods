@@ -1,5 +1,18 @@
 {
-	"key.glass-companion.menu": "Open Saturn Client Companion menu",
-	"key.glass-companion.zoom": "Zoom",
-	"key.category.glass-companion.main": "Saturn Client Companion"
+  "key.glass-companion.menu": "Open Saturn mods menu",
+  "key.glass-companion.zoom": "Zoom",
+  "key.category.glass-companion.main": "Saturn Client",
+  "key.glass-companion.freelook": "Freelook (hold)",
+  "key.glass-companion.sort": "Sort inventory",
+  "key.glass-companion.chunks": "Cycle chunk borders",
+  "message.glass-companion.sort.sorted": "Inventory sorted (%s stacks).",
+  "message.glass-companion.sort.creative": "Sorting is off in Creative mode.",
+  "message.glass-companion.sort.spectator": "Sorting is off in Spectator mode.",
+  "message.glass-companion.sort.busy": "Close the open container first.",
+  "message.glass-companion.sort.cursor": "Put down the item on your cursor first.",
+  "message.glass-companion.sort.failed": "Couldn't finish sorting; leftover items were put back.",
+  "echo-arrow.filter.all": "Echo Arrow filter: all sounds",
+  "echo-arrow.filter.hostile": "Echo Arrow filter: hostile sounds",
+  "echo-arrow.filter.notes": "Echo Arrow filter: note blocks",
+  "echo-arrow.filter.notes_and_hostile": "Echo Arrow filter: note blocks and hostile sounds"
 }

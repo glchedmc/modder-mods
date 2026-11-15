@@ -5,11 +5,24 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"AbstractClientPlayerMixin",
+		"AbstractContainerScreenAccessor",
+		"AbstractFurnaceMenuAccessor",
+		"AbstractFurnaceScreenMixin",
 		"CameraMixin",
+		"ClientLevelMixin",
+		"FreelookCameraMixin",
+		"FreelookMouseMixin",
 		"GameRendererMixin",
+		"GuiMixin",
+		"ItemStackMixin",
+		"LevelMixin",
 		"LightmapExtractorMixin",
 		"MouseHandlerMixin",
-		"ScreenEffectRendererMixin"
+		"ScreenEffectRendererMixin",
+		"SubtitleOverlayMixin",
+		"WeatherEffectRendererMixin"
 	],
-	"injectors": { "defaultRequire": 1 }
+	"injectors": {
+		"defaultRequire": 1
+	}
 }
