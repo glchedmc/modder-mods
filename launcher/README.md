@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.4-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.5-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.4-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.4-x86_64.AppImage && ./SaturnClient-0.1.4-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.5-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.5-x86_64.AppImage && ./SaturnClient-0.1.5-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,38 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.5: Friends & chat
+
+A **Friends** tab, Essential-style, with no Saturn server and nothing to pay for.
+
+- **Add friends with a code.** Everyone gets a friend code like `SAT-7XK3-QF9D` (and a QR/npub). Paste a friend's code →
+  Find → check the name → Send request. They accept in Friends → Requests.
+- **Chat** with friends in the launcher. Messages are end-to-end encrypted and delivered even if your friend is offline
+  (they arrive next time they open Saturn). Unread badges in the sidebar and dock, in-app toasts, and desktop notifications
+  when Saturn is in the background (Settings → Friends).
+- **Presence:** see who's online, in game (and which instance), or hosting.
+- **Worlds with members, one-click join:** Friends → Worlds → Share a world: pick an instance and tick the friends who can join.
+  Launch it and Open to LAN. Members see it go **Live** and click **Join**. Saturn swaps the Direct (P2P) codes for you over
+  encrypted messages, opens the tunnel, and then **Play** launches their instance straight into your world (Quick Play).
+  Voice chat goes through the same tunnel. Manual invite codes in Host World still work as a fallback.
+- **Invites in chat:** "Invite to world" adds the friend as a member and drops an invite card with a Join button in your chat.
+
+How it works: each install makes a [Nostr](https://nostr.com) key pair, kept in the keychain/libsecret like your other keys.
+Messages are NIP-17 private messages: NIP-44 encrypted, sealed and gift-wrapped (NIP-59) with a throwaway key and a randomized
+timestamp, and stored by several free public relays (default: nos.lol, relay.primal.net, nostr.mom, offchain.pub,
+relay.damus.io; editable in Settings → Friends). Presence and join signaling use the same encryption in the ephemeral
+event range, so relays forward them live and don't store them. Only accepted friends can message you or ask to join; a join is
+only answered for members of that world while you're hosting.
+
+Privacy and limits:
+- Relays can't read messages or see who sent them, but they see your public key receiving encrypted events, roughly
+  when, and your IP address (like any server you connect to). With "Findable by friend code" on, your display name and
+  code are published so friends can look you up; turn it off and share your npub instead.
+- Public relays are free and best-effort: they can rate-limit, go down, or delete old events. Saturn uses several at once.
+- Friend codes are 8 characters (40 bits), so always check the name before sending a request; the full npub is exact.
+- Chat history is stored only on this computer (`social.json`). A second computer is a separate identity.
+- In-game chat overlay isn't included yet; you get desktop notifications while playing.
 
 ## What's new in 0.1.4
 
@@ -140,6 +172,8 @@ npm run screenshots    # headless UI screenshots (browser mock data)
 npm run dist:mac       # unsigned arm64 + x64 zips in dist/ (run build:mod first so the companion jar is bundled)
 npm run dist:linux     # AppImage + .deb + tar.gz (x64) in dist/
 xvfb-run -a npx electron scripts/p2p-smoke.js --no-sandbox   # real WebRTC tunnel smoke test (TCP + UDP echo)
+xvfb-run -a npx electron scripts/friends-smoke.js            # two installs: add by code, chat, one-click join (local relay; RELAYS=public for the real ones)
+node scripts/social-live.js                                   # Friends signaling against the public relays
 node scripts/verify-fabric.js   # real end-to-end: create a Fabric 26.3 instance, download, build the launch command
 ```
 
