@@ -32,6 +32,7 @@ const upnp = require('./upnp');
 const tailscale = require('./tailscale');
 const { lookupSkin } = require('./skins/lookup');
 const { renameMod: renameModFile, resetMod: resetModFile } = require('./mods/rename');
+const { GameLibrary } = require('./games/library');
 
 const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey', 'duckdnsToken'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
@@ -48,6 +49,7 @@ class LauncherService {
     this.running = new Map();
     this.authAbort = null;
     this.skins = new SkinLibrary(this.dirs.skins);
+    this.games = new GameLibrary({ dataDir: dataDir, cacheDir: this.dirs.cache });
     this.cosmetics = new CosmeticsStore(this.dirs.cosmetics);
     this.hosts = new Map(); // instanceId -> {address, since}
     this.lanPorts = new Map(); // instanceId -> Open to LAN port seen in the log
@@ -820,6 +822,14 @@ class LauncherService {
   storageInfo() { return { ...this.secretStorage }; }
 
   /** Java runtimes this computer already has (launcher-managed + system). */
+  // ---------- Games tab (installed Steam games + manual ones; local files only) ----------
+  listGames() { return this.games.list(); }
+  gameArt(appid) { return this.games.fetchArt(appid); }
+  setGameFavorite(id, on) { return this.games.setFavorite(id, on); }
+  addManualGame(entry) { return this.games.addManual(entry || {}); }
+  removeManualGame(id) { return this.games.removeManual(id); }
+  renameManualGame(id, name) { return this.games.renameManual(id, name); }
+
   async detectJava() {
     const dirs = [];
     try { for (const e of await fsp.readdir(this.dirs.runtimes)) dirs.push({ dir: path.join(this.dirs.runtimes, e), managed: true }); } catch { /* none yet */ }
