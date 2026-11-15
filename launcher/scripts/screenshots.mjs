@@ -187,6 +187,17 @@ const shots = [
     await p.waitForSelector('.toast', { timeout: 5000 }).catch(() => {});
     await p.waitForTimeout(700);
   }],
+  ['54-built-in-mods', '#/settings?section=companion', async (p) => { await p.waitForSelector('.segmented'); await p.waitForTimeout(800); }, { width: 1360, height: 1500 }],
+  ['55-instance-built-in-mods', '#/instance?id=fabric-26-3', async (p) => { await p.getByRole('button', { name: 'Built-in mods' }).click(); await p.waitForTimeout(1000); }, { width: 1360, height: 1100 }],
+  ['56-new-instance-snapshot', '#/settings?section=general', async (p) => {
+    await p.getByRole('switch', { name: 'Show snapshots' }).click();
+    await p.getByRole('switch', { name: 'Old versions' }).click();
+    await p.waitForTimeout(300);
+    await p.evaluate(() => { location.hash = '#/library'; });
+    await p.waitForSelector('.new-card'); await p.click('.new-card'); await p.waitForTimeout(900);
+    await p.selectOption('.sheet select >> nth=0', '26.4-snapshot-8');
+    await p.waitForTimeout(900);
+  }],
   ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 
