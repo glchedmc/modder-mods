@@ -68,6 +68,11 @@ const P = {
   tophat: <><path d="M8 4.5h8v10H8z" /><path d="M4 16.5h16" /><path d="M8 12h8" /></>,
   orbit: <><circle cx="12" cy="12" r="4.5" /><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-18 12 12)" /></>,
   box: <><path d="M4 8 12 4l8 4v8l-8 4-8-4V8Z" /><path d="m4 8 8 4 8-4M12 12v8" /></>,
+  chat: <><path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5V16.5h1a2 2 0 0 1-2-2v-8Z" /><path d="M8.5 9.5h7M8.5 12.5h4.5" /></>,
+  send: <><path d="M4 11.5 20 4l-6.5 16-2.5-6.5L4 11.5Z" /><path d="m11 13.5 3.5-3.5" /></>,
+  qr: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" /></>,
+  bell: <><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15l1.5-2Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
+  userPlus: <><circle cx="10" cy="8.5" r="3.5" /><path d="M3.5 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></>,
 };
 
 export default function Icon({ name, size = 18, stroke = 1.8, style, className }) {

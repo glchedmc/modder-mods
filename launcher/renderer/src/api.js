@@ -4,6 +4,7 @@
 import catalog from '../../core/companion-features.json';
 import { starterSkin, STARTERS } from './lib/starterSkins.mjs';
 import { toDataUrl, skinFrontDataUrl } from './lib/image';
+import { createSocialMock } from './lib/socialMock';
 
 export const isElectron = typeof window !== 'undefined' && Boolean(window.glass);
 export const features = catalog;
@@ -265,7 +266,8 @@ const mockApi = {
   setAppIcon: async (name) => { mock.settings.appIcon = name; return true; },
   pickImageFile: async () => null,
   migrationInfo: async () => ({ migrated: false }),
-  appInfo: async () => ({ version: '0.1.4', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Saturn Client', electron: 'preview' }),
+  ...createSocialMock({ emit, wait: (ms) => new Promise((r) => setTimeout(r, ms)) }),
+  appInfo: async () => ({ version: '0.1.5', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Saturn Client', electron: 'preview' }),
 };
 
 export const api = isElectron ? window.glass.api : mockApi;

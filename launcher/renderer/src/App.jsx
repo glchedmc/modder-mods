@@ -14,6 +14,7 @@ import Schematics from './views/Schematics';
 import Skins from './views/Skins';
 import Cosmetics from './views/Cosmetics';
 import Host from './views/Host';
+import Friends from './views/Friends';
 import { SaturnMark } from './components/brand';
 
 const NAV = [
@@ -22,6 +23,7 @@ const NAV = [
   ['discover', 'Discover', 'discover'],
   ['skins', 'Skins', 'shirt'],
   ['cosmetics', 'Cosmetics', 'crown'],
+  ['friends', 'Friends', 'peers'],
   ['host', 'Host World', 'globe'],
   ['schematics', 'Schematics', 'layers'],
   ['studio', 'Grok Studio', 'sparkles'],
@@ -30,7 +32,7 @@ const NAV = [
 const TITLES = {
   home: ['Play', null], library: ['Library', 'Your instances and servers'], discover: ['Discover', 'Mods, packs and shaders from every platform'],
   schematics: ['Schematics', 'Builds for the selected instance'],
-  skins: ['Skins', 'Your look, in 3D'], cosmetics: ['Cosmetics', 'Capes, hats and wings'], host: ['Host World', 'Play your world with friends'],
+  skins: ['Skins', 'Your look, in 3D'], cosmetics: ['Cosmetics', 'Capes, hats and wings'], host: ['Host World', 'Play your world with friends'], friends: ['Friends', 'Chat and play together'],
   studio: ['Grok Studio', 'Upgrade mods to the latest Minecraft'], settings: ['Settings', null], instance: ['Instance', null],
 };
 
@@ -52,6 +54,7 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [logs, setLogs] = useState({});
   const [jobsRunning, setJobsRunning] = useState(0);
+  const [social, setSocial] = useState({ unread: 0, requests: 0 });
 
   const go = useCallback((r, p = {}) => {
     const q = new URLSearchParams(p).toString();
@@ -86,10 +89,26 @@ export default function App() {
       on('launch:log', ({ id, line }) => setLogs((l) => ({ ...l, [id]: [...(l[id] || []).slice(-1500), line] }))),
       on('grok:job', (job) => { if (job.state !== 'running') { toast(job.state === 'done' ? `${job.title} upgraded to ${job.to} and installed` : `${job.title}: upgrade ${job.state}`, job.state === 'done' ? 'ok' : 'error'); refresh(); } }),
       on('host:update', (u) => { if (u.address) toast(`Your world is live at ${u.address}`, 'ok'); }),
+      on('social:update', (s) => setSocial({ unread: (s && s.unreadTotal) || 0, requests: (s && s.requests) || 0 })),
+      on('nav', (n) => n && n.route && go(n.route, n.params || {})),
+      on('social:event', (e) => {
+        const h = parseHash();
+        const viewing = h.route === 'friends' && h.params.pk === e.pk;
+        if (e.type === 'message' && !viewing) toast(`${e.name}: ${e.text}`, 'info', { label: 'Reply', icon: 'chat', run: () => go('friends', { pk: e.pk }) });
+        else if (e.type === 'invite') toast(`${e.name} invited you to “${e.world.name}”`, 'ok', { label: 'View', icon: 'globe', run: () => go('friends', { tab: 'worlds' }) });
+        else if (e.type === 'friend-request') toast(`${e.name || 'Someone'} sent you a friend request`, 'info', { label: 'View', icon: 'userPlus', run: () => go('friends') });
+        else if (e.type === 'friend') toast(`You and ${e.name || 'your friend'} are now friends`, 'ok');
+        else if (e.type === 'world') toast(`${e.name} added you to “${e.world.name}”`, 'ok', { label: 'View', icon: 'globe', run: () => go('friends', { tab: 'worlds' }) });
+        else if (e.type === 'hosting' && h.route !== 'friends') toast(`${e.name} is hosting “${e.world.name}”`, 'ok', { label: 'Join', icon: 'play', run: () => go('friends', { tab: 'worlds' }) });
+        else if (e.type === 'joining') toast(e.text, 'info');
+        else if (e.type === 'join-ready') toast(e.text, 'ok');
+        else if (e.type === 'join-failed') toast(e.text, 'error');
+      }),
       on('auth:update', (u) => { if (u.state === 'done') { toast(`Signed in as ${u.name}`, 'ok'); refresh(); } else if (u.state === 'error') toast(u.error, 'error'); }),
     ];
+    api.socialState().then((s) => setSocial({ unread: (s && s.unreadTotal) || 0, requests: (s && s.requests) || 0 })).catch(() => {});
     return () => offs.forEach((f) => f && f());
-  }, [toast, refresh]);
+  }, [toast, refresh, go]);
 
   // Theme + accent + glass intensity.
   useEffect(() => {
@@ -144,7 +163,7 @@ export default function App() {
   };
 
   const [title, sub] = TITLES[route] || TITLES.home;
-  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host };
+  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host, friends: Friends };
   const View = views[route] || Home;
   const isMac = isElectron && navigator.userAgent.includes('Mac');
   const isLinux = isElectron && !isMac && navigator.userAgent.includes('Linux');
@@ -165,6 +184,7 @@ export default function App() {
                 <button key={k} title={iconsOnly ? label : undefined} className={route === k || (k === 'library' && route === 'instance' && params.tab !== 'schematics') || (k === 'schematics' && route === 'instance' && params.tab === 'schematics') ? 'active' : ''} onClick={() => go(k)}>
                   <Icon name={icon} size={18} /><span className="nav-text">{label}</span>
                   {k === 'studio' && jobsRunning > 0 && <span className="badge">{jobsRunning}</span>}
+                  {k === 'friends' && social.unread + social.requests > 0 && <span className="badge hot">{social.unread + social.requests}</span>}
                 </button>
               ))}
             </nav>
@@ -209,7 +229,7 @@ export default function App() {
           <div key={t.id} className="toast glass strong">
             <Icon name={t.kind === 'ok' ? 'check' : t.kind === 'error' ? 'info' : 'sparkles'} size={18} style={{ color: t.kind === 'ok' ? 'var(--green)' : t.kind === 'error' ? 'var(--red)' : 'var(--accent)', flex: 'none', marginTop: 1 }} />
             <span style={{ fontWeight: 550, flex: 1 }}>{t.text}</span>
-            {t.action && <button className="btn sm" onClick={() => { dismiss(t.id); t.action.run(); }}><Icon name="undo" size={13} />{t.action.label}</button>}
+            {t.action && <button className="btn sm" onClick={() => { dismiss(t.id); t.action.run(); }}><Icon name={t.action.icon || 'undo'} size={13} />{t.action.label}</button>}
           </div>
         ))}
       </div>
