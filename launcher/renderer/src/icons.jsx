@@ -1,5 +1,15 @@
 // SF Symbols-style line icons drawn inline so the app has no icon font dependency.
 const P = {
+  redo: <><path d="M15 7.5 19 11.5l-4 4" /><path d="M19 11.5H9.5a4.5 4.5 0 0 0 0 9H12" /></>,
+  brush: <><path d="M19.5 4.5 11 13" /><path d="M14 4.5 19.5 10" opacity="0" /><path d="M10.5 13.5c-2 0-3.5 1.4-3.5 3.3 0 1.3-.8 2.2-2.5 2.7 3.6 1.2 8.5.4 8.5-3.3 0-1.4-1.1-2.7-2.5-2.7Z" /><path d="m13 11 2 2" /></>,
+  eraser: <><path d="m4.5 15.5 9-9a2 2 0 0 1 2.8 0l2.7 2.7a2 2 0 0 1 0 2.8l-7.5 7.5H8.5Z" /><path d="m9 11 5 5" /><path d="M12 19.5h8" /></>,
+  dropper: <><path d="m14.5 5.5 4 4" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3l-2 2-3-3 2-2Z" /><path d="m14.5 7.5-9 9V19.5h3l9-9" /></>,
+  bucket: <><path d="m5 11 7-7 7 7-7 7Z" /><path d="M5 11h14" /><path d="M20 15.5s1.5 1.8 1.5 3a1.5 1.5 0 0 1-3 0c0-1.2 1.5-3 1.5-3Z" /></>,
+  mirror: <><path d="M12 3.5v17" strokeDasharray="2 2.2" /><path d="M9 7 4.5 12 9 17Z" /><path d="M15 7l4.5 5L15 17Z" /></>,
+  router: <><rect x="3.5" y="13" width="17" height="6.5" rx="2" /><path d="M7 16.2h.01M10 16.2h.01" /><path d="M15 13V8.5" /><path d="M12 6.5a4.5 4.5 0 0 1 6 0" /><path d="M10 4.2a7.5 7.5 0 0 1 10 0" /></>,
+  mesh: <><circle cx="6" cy="6" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="6" cy="18" r="2" /><circle cx="18" cy="18" r="2" /><circle cx="12" cy="12" r="2" /><path d="M7.5 7.5 10.5 10.5M16.5 7.5l-3 3M7.5 16.5l3-3M16.5 16.5l-3-3" /></>,
+  peers: <><circle cx="7" cy="8" r="2.6" /><circle cx="17" cy="8" r="2.6" /><path d="M3 18.5c.4-2.6 2-4 4-4s3.6 1.4 4 4" /><path d="M13 18.5c.4-2.6 2-4 4-4s3.6 1.4 4 4" /><path d="M10 8h4" strokeDasharray="1.5 1.5" /></>,
+  grid: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9.3h16M4 14.6h16M9.3 4v16M14.6 4v16" /></>,
   play: <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" fill="currentColor" stroke="none" />,
   home: <><path d="M4 11.5 12 5l8 6.5" /><path d="M6 10v8.5a1 1 0 0 0 1 1h3.5V15h3v4.5H17a1 1 0 0 0 1-1V10" /></>,
   library: <><rect x="4" y="4" width="7" height="7" rx="2" /><rect x="13" y="4" width="7" height="7" rx="2" /><rect x="4" y="13" width="7" height="7" rx="2" /><rect x="13" y="13" width="7" height="7" rx="2" /></>,

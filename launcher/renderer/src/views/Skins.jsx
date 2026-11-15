@@ -4,6 +4,7 @@ import { api } from '../api';
 import { Segmented, Switch } from '../components/ui';
 import SkinViewer from '../components/SkinViewer';
 import AiSkinSheet from './AiSkin';
+import SkinEditor from './SkinEditor';
 import { loadImageData, toDataUrl, skinFrontDataUrl } from '../lib/image';
 import { normalizeSkin } from '../lib/skinmap.mjs';
 import { starterSkin, STARTERS } from '../lib/starterSkins.mjs';
@@ -25,6 +26,25 @@ export default function Skins({ app }) {
   const [drag, setDrag] = useState(false);
   const [applying, setApplying] = useState(false);
   const fileRef = useRef(null);
+  const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
+  const [player, setPlayer] = useState(null);
+  const [looking, setLooking] = useState(false);
+  const [playerThumb, setPlayerThumb] = useState(null);
+  const lookup = async () => {
+    if (!query.trim()) return;
+    setLooking(true);
+    try { const r = await api.lookupPlayerSkin(query.trim()); setPlayer(r); setPlayerThumb(await skinFrontDataUrl(r.skin, r.model, 3)); } catch (e) { setPlayer(null); app.toast(e.message, 'error'); }
+    setLooking(false);
+  };
+  const playerAsEntry = () => ({ name: `${player.name}'s skin`, dataUrl: player.skin, variant: player.model, source: 'player', owner: player.name });
+  const savePlayer = async () => {
+    try {
+      const img = await loadImageData(player.skin, 64);
+      const e = await api.addSkin({ png: toDataUrl(normalizeSkin(img)), name: `${player.name}'s skin`, variant: player.model, source: 'player' });
+      await api.selectSkin(e.id); await reload(); app.toast(`Saved ${e.name}`, 'ok');
+    } catch (e) { app.toast(e.message, 'error'); }
+  };
 
   const reload = () => api.listSkins().then(setLib);
   useEffect(() => { reload(); api.getCosmetics().then(setCos); api.accountProfile().then(setProfile).catch(() => setProfile({ signedIn: false, skins: [], capes: [] })); }, []);
@@ -69,13 +89,15 @@ export default function Skins({ app }) {
           <Segmented value={sel ? sel.variant : 'classic'} onChange={setVariant} options={[{ value: 'classic', label: 'Classic' }, { value: 'slim', label: 'Slim' }]} />
           <button className={`btn sm icon-btn ${showCape ? 'on' : ''}`} title="Show cape" onClick={() => setShowCape(!showCape)}><Icon name="wings" size={15} /></button>
         </div>
-        {sel && <div className="stage-name"><b>{sel.name}</b><span className="faint">{sel.source === 'grok' ? 'Made with Grok' : sel.source === 'openai' ? 'Made with ChatGPT' : sel.source === 'starter' ? 'Starter skin' : 'Uploaded'}</span></div>}
+        {sel && <div className="stage-name"><b>{sel.name}</b><span className="faint">{sel.source === 'grok' ? 'Made with Grok' : sel.source === 'openai' ? 'Made with ChatGPT' : sel.source === 'starter' ? 'Starter skin' : sel.source === 'editor' ? 'Made in the editor' : sel.source === 'player' ? 'From a player' : 'Uploaded'}</span></div>}
       </div>
 
       <div className="col" style={{ gap: 14, minWidth: 0 }}>
         <div className="skin-actions glass">
-          <button className="btn grok-cta" onClick={() => setAi(true)}><Icon name="sparkles" size={16} />Generate with AI</button>
-          <button className="btn" onClick={() => fileRef.current.click()} title="64×64 PNG"><Icon name="upload" size={15} />Upload PNG</button>
+          <button className="btn grok-cta" title="Generate a skin with AI" onClick={() => setAi(true)}><Icon name="sparkles" size={16} />Generate</button>
+          <button className="btn" onClick={() => fileRef.current.click()} title="Upload a 64×64 PNG"><Icon name="upload" size={15} />Upload</button>
+          <button className="btn" title="Open the selected skin in the editor" disabled={!sel} onClick={() => setEditing(sel)}><Icon name="pencil" size={15} />Edit</button>
+          <button className="btn ghost icon-btn" title="New blank skin" aria-label="New blank skin" onClick={() => setEditing({ name: 'New skin', variant: 'classic' })}><Icon name="plus" size={16} /></button>
           <input ref={fileRef} type="file" accept="image/png" hidden onChange={(e) => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; }} />
           <div className="grow" />
           <button className="btn primary" disabled={!sel || applying} onClick={apply} title={profile && profile.signedIn ? 'Upload to your Minecraft profile' : 'Needs Microsoft sign-in'}><Icon name="check" size={15} />{applying ? 'Applying…' : 'Apply to account'}</button>
@@ -87,12 +109,29 @@ export default function Skins({ app }) {
             <span className={`pill ${profile && profile.signedIn ? 'green' : 'amber'}`}><span className="dot" />{profile && profile.signedIn ? 'Online' : 'Local only'}</span></div>
         </div>
 
+        <div className="group-title">Load a player's skin</div>
+        <div className="group glass" style={{ padding: 12 }}>
+          <div className="player-lookup">
+            <div className="field grow" title="Minecraft Java username or UUID"><Icon name="user" size={14} /><input value={query} placeholder="Username or UUID" onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && lookup()} /></div>
+            <button className="btn" disabled={!query.trim() || looking} onClick={lookup}>{looking ? <span className="spinner" /> : <Icon name="search" size={14} />}Load</button>
+          </div>
+          {player && (
+            <div className="player-result" style={{ marginTop: 10 }}>
+              {playerThumb && <img src={playerThumb} alt="" />}
+              <div className="grow" style={{ minWidth: 0 }}><b>{player.name}</b><div className="faint mono truncate" style={{ fontSize: 11 }}>{player.uuid}</div><span className="pill" style={{ marginTop: 4 }}>{player.model === 'slim' ? 'Slim' : 'Classic'}{player.legacy ? ' · old 64×32' : ''}</span></div>
+              <button className="btn sm" title="Tweak it in the editor" onClick={() => setEditing(playerAsEntry())}><Icon name="pencil" size={13} />Edit</button>
+              <button className="btn sm primary" title="Add to your library" onClick={savePlayer}><Icon name="plus" size={13} />Save</button>
+            </div>
+          )}
+        </div>
+
         <div className="group-title">Library</div>
         <div className="skin-grid stagger">
           {lib.skins.map((s) => (
             <div key={s.id} className={`skin-card glass ${sel && sel.id === s.id ? 'active' : ''}`} onClick={() => select(s.id)}>
               <Thumb skin={s} />
               <div className="skin-meta"><b className="truncate">{s.name}</b><span className="pill">{s.variant === 'slim' ? 'Slim' : 'Classic'}</span></div>
+ <button className="btn ghost sm icon-btn edit" title="Edit" onClick={(e) => { e.stopPropagation(); setEditing(s); }}><Icon name="pencil" size={14} /></button>
               <button className="btn ghost sm icon-btn del" title="Delete" onClick={async (e) => { e.stopPropagation(); if (window.confirm(`Delete ${s.name}?`)) { await api.removeSkin(s.id); reload(); } }}><Icon name="trash" size={14} /></button>
             </div>
           ))}
@@ -112,6 +151,7 @@ export default function Skins({ app }) {
           )) : <div className="setting"><div className="label"><b>No account capes</b><span>Official capes appear here after sign-in. Try Saturn capes in Cosmetics.</span></div><button className="btn sm" onClick={() => app.go('cosmetics')}><Icon name="crown" size={14} />Cosmetics</button></div>}
         </div>
       </div>
+      {editing && <SkinEditor app={app} skin={editing} onClose={() => setEditing(null)} onSaved={async (saved) => { if (saved && saved.id) { await api.selectSkin(saved.id); setEditing((cur) => (cur && cur.id ? { ...cur, ...saved } : { ...saved, dataUrl: cur && cur.dataUrl })); } reload(); }} />}
       {ai && <AiSkinSheet app={app} onClose={() => setAi(false)} onSaved={async (s) => { await api.selectSkin(s.id); reload(); app.toast(`Saved ${s.name}`, 'ok'); }} />}
     </div>
   );
