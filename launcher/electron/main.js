@@ -7,6 +7,8 @@ const backgrounds = require('../core/backgrounds');
 const { exists } = require('../core/util');
 const mic = require('../core/mic');
 const { migrateDataDir } = require('../core/migrate');
+const { platformCipher } = require('../core/secrets');
+const { startP2P } = require('./p2p-host');
 
 app.setName('Saturn Client');
 // Move data from the old "Glass Launcher" folder before anything opens it.
@@ -14,18 +16,36 @@ let migration = { migrated: false };
 try { migration = migrateDataDir(app.getPath('appData'), app.getPath('userData')); } catch (e) { migration = { migrated: false, error: e.message }; }
 
 const DOCK_ICONS = ['saturn', 'wireframe', 'crystal'];
-function applyDockIcon(name) {
-  if (process.platform !== 'darwin' || !app.dock) return false;
+function iconImage(name) {
   const file = path.join(resourcesDir(), 'dock', `${DOCK_ICONS.includes(name) ? name : 'saturn'}.png`);
   const img = nativeImage.createFromPath(file);
-  if (img.isEmpty()) return false;
-  app.dock.setIcon(img);
-  return true;
+  return img.isEmpty() ? null : img;
+}
+/** macOS: Dock icon. Linux/Windows: the window (taskbar) icon. */
+function applyDockIcon(name) {
+  const img = iconImage(name);
+  if (!img) return false;
+  if (process.platform === 'darwin') { if (!app.dock) return false; app.dock.setIcon(img); return true; }
+  if (win && !win.isDestroyed()) { win.setIcon(img); return true; }
+  return false;
 }
 
 function micStatus() {
   const raw = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('microphone') : 'granted';
   return mic.describe(raw);
+}
+
+const LINUX_SOUND_SETTINGS = [['gnome-control-center', ['sound']], ['systemsettings', ['kcm_pulseaudio']], ['pavucontrol', ['--tab=4']]];
+function openLinuxSoundSettings() {
+  const { spawn } = require('child_process');
+  const tryNext = (i) => {
+    if (i >= LINUX_SOUND_SETTINGS.length) return;
+    const [cmd, args] = LINUX_SOUND_SETTINGS[i];
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    child.on('error', () => tryNext(i + 1));
+    child.unref();
+  };
+  tryNext(0);
 }
 
 async function askMic() {
@@ -47,15 +67,17 @@ function resourcesDir() {
   return app.isPackaged ? path.join(process.resourcesPath, 'resources') : path.join(__dirname, '..', 'resources');
 }
 
-function createWindow() {
+function createWindow(appIcon) {
   const mac = process.platform === 'darwin';
   win = new BrowserWindow({
+    icon: mac ? undefined : (iconImage(appIcon) || undefined),
     width: 1280,
     height: 820,
     minWidth: 1040,
     minHeight: 680,
     show: false,
     title: 'Saturn Client',
+    autoHideMenuBar: !mac,
     titleBarStyle: mac ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 26, y: 26 },
     vibrancy: mac ? 'under-window' : undefined,
@@ -70,6 +92,7 @@ function createWindow() {
     },
   });
   win.once('ready-to-show', () => win.show());
+  win.on('closed', () => { win = null; if (process.platform !== 'darwin') app.quit(); });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
@@ -94,15 +117,26 @@ const METHODS = [
   'skinAiProviders', 'generateSkinImage',
   'getCosmetics', 'setCosmetics', 'addCustomCape', 'removeCustomCape',
   'hostStatus', 'installHostingMod', 'hostWorld',
+  'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
+  'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
+  'lookupPlayerSkin', 'storageInfo', 'detectJava',
 ];
 
 app.whenReady().then(async () => {
+  const storage = platformCipher(safeStorage);
   service = await new LauncherService({
     dataDir: app.getPath('userData'),
-    cipher: safeStorage,
+    cipher: storage.cipher,
+    secretStorage: { mode: storage.mode, label: storage.label, backend: storage.backend },
     resourcesDir: resourcesDir(),
     emit,
   }).init();
+  // Direct (free) hosting: WebRTC runs in a hidden window; sockets stay here.
+  try {
+    const p2p = startP2P({ emit, hostPort: (id) => service.hostGamePort(id), voicePort: (id) => service.hostVoicePort(id) });
+    service.attachP2P(p2p.manager);
+    app.on('before-quit', () => { try { p2p.manager.closeAll(); } catch { /* quitting */ } });
+  } catch (e) { console.error('P2P unavailable:', e.message); }
 
   for (const m of METHODS) {
     ipcMain.handle(`api:${m}`, async (_e, ...args) => {
@@ -127,7 +161,11 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('api:micStatus', () => ({ ok: true, value: micStatus() }));
   ipcMain.handle('api:requestMic', async () => ({ ok: true, value: await askMic() }));
-  ipcMain.handle('api:openMicSettings', async () => { if (process.platform === 'darwin') await shell.openExternal(mic.PRIVACY_URL); return { ok: true, value: true }; });
+  ipcMain.handle('api:openMicSettings', async () => {
+    if (process.platform === 'darwin') await shell.openExternal(mic.PRIVACY_URL);
+    else if (process.platform === 'linux') openLinuxSoundSettings();
+    return { ok: true, value: true };
+  });
   ipcMain.handle('api:setAppIcon', async (_e, name) => {
     await service.setSettings({ appIcon: DOCK_ICONS.includes(name) ? name : 'saturn' });
     return { ok: true, value: applyDockIcon(name) };
@@ -143,6 +181,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('api:migrationInfo', () => ({ ok: true, value: migration }));
   ipcMain.handle('api:openFolder', (_e, id) => shell.openPath(service.instanceDir(id)));
   ipcMain.handle('api:openUrl', (_e, url) => { if (/^https:\/\//.test(url)) shell.openExternal(url); });
+  ipcMain.handle('api:copyText', (_e, text) => { require('electron').clipboard.writeText(String(text || '').slice(0, 30000)); return { ok: true, value: true }; });
   ipcMain.handle('api:pickBackgroundFile', async () => {
     const r = await dialog.showOpenDialog(win, {
       title: 'Choose a background',
@@ -168,8 +207,8 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('api:appInfo', () => ({ ok: true, value: { version: app.getVersion(), platform: process.platform, arch: process.arch, dataDir: app.getPath('userData'), electron: process.versions.electron, dark: nativeTheme.shouldUseDarkColors } }));
   const s = await service.getSettings();
+  createWindow(s.appIcon);
   applyDockIcon(s.appIcon);
-  createWindow();
   // First launch on macOS: ask for the microphone so voice chat mods (Simple Voice Chat)
   // work in game; Java runs as our child process and inherits this permission.
   if (mic.shouldPromptOnLaunch(s, process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('microphone') : 'granted')) {
@@ -178,7 +217,10 @@ app.whenReady().then(async () => {
       try { await systemPreferences.askForMediaAccess('microphone'); } catch { /* user can retry in Settings */ }
     });
   }
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  app.on('activate', async () => { if (!win) { createWindow((await service.getSettings()).appIcon); } });
 });
 
+// Closing the main window quits (macOS keeps running in the Dock); the hidden
+// P2P worker window must not keep the app alive on its own.
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+

@@ -15,6 +15,9 @@ const METHODS = [
   'getCosmetics', 'setCosmetics', 'addCustomCape', 'removeCustomCape',
   'hostStatus', 'installHostingMod', 'hostWorld',
   'micStatus', 'requestMic', 'openMicSettings', 'setAppIcon', 'pickImageFile', 'migrationInfo',
+  'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
+  'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
+  'lookupPlayerSkin', 'storageInfo', 'detectJava', 'copyText',
 ];
 
 const api = {};
@@ -26,7 +29,7 @@ for (const m of METHODS) {
   };
 }
 
-const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update', 'host:update'];
+const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update', 'host:update', 'p2p:update'];
 contextBridge.exposeInMainWorld('glass', {
   api,
   pathsFromFiles(fileList) {
