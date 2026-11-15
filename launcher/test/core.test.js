@@ -340,7 +340,7 @@ test('settings: background fields persist through save and load', async () => {
   assert.equal(loaded.backgroundDim, 0.15);
   assert.equal(loaded.backgroundParallax, 0.5);
   assert.equal(loaded.customBackground.file, 'abc.webp');
-  assert.equal(loaded.glassIntensity, 0.4);
+  assert.equal(loaded.glassStrength, 0.4, 'old glassIntensity carries over to glassStrength (0.1.4)');
   assert.equal(loaded.defaultVersion, '26.3');
   const cleared = await settingsStore.save(file, { ...loaded, customBackground: null, backgroundId: 'highlands' });
   assert.equal(cleared.customBackground, null);

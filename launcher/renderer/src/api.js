@@ -20,10 +20,16 @@ export function on(channel, fn) {
 // ---------------- mock ----------------
 const companionDefaults = Object.fromEntries(catalog.features.map((f) => [f.key, f.default]));
 const now = Date.now();
+const MOCK_PROVIDERS = [
+  { id: 'p2p', label: 'Direct (free)', voice: true, recommended: true, blurb: 'Peer-to-peer like Essential. Swap invite codes, no setup.' },
+  { id: 'tailscale', label: 'Tailscale', voice: true, blurb: 'Private network. Works with voice, no port forwarding.' },
+  { id: 'direct', label: 'Own IP / port forward', voice: true, blurb: 'Your public IP or DNS name. UPnP or router setup.' },
+  { id: 'e4mc', label: 'e4mc quick link', voice: false, blurb: 'Instant public address. No voice chat.' },
+];
 const mock = {
   settings: {
     defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false,
-    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7', sidebarCollapsed: false, sidebarMode: 'icons', appIcon: 'saturn', micPrompted: true, skinAiProvider: 'grok', skinAiGrokModel: 'grok-imagine-image-2.0', skinAiOpenaiModel: 'gpt-image-1',
+    theme: 'dark', accent: '#7aa8ff', glassStrength: 0.75, reduceTransparency: false, hostProvider: 'p2p', hostDdnsName: '', reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7', sidebarCollapsed: false, sidebarMode: 'icons', appIcon: 'saturn', micPrompted: true, skinAiProvider: 'grok', skinAiGrokModel: 'grok-imagine-image-2.0', skinAiOpenaiModel: 'gpt-image-1',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
   },
   secrets: { xaiApiKey: true, openaiApiKey: false, curseforgeApiKey: true, curseforgeApiKeyCustom: false, curseforgeApiKeyBuiltin: true },
@@ -31,6 +37,9 @@ const mock = {
   selectedSkin: null,
   cosmetics: { equipped: { cape: 'saturn', hat: null, wings: null }, capeOnElytra: true, localSkin: true, customCapes: [], customUrls: {}, inGame: { cape: true, hat: false, wings: false } },
   hosts: {},
+  running: {},
+  voice: {},
+  p2p: [],
   accounts: [],
   instances: [
     { id: 'fabric-26-3', name: 'Fabric 26.3', mcVersion: '26.3', loader: 'fabric', loaderVersion: '0.20.1', type: 'client', accent: '#7aa8ff', icon: 'grass', memoryMb: 6144, companion: true, lastPlayed: new Date(now - 3600e3).toISOString(), playTimeSec: 151200,
@@ -135,7 +144,9 @@ const mockApi = {
   launch: async (id) => {
     const phases = [['Java 25', 1, 1], ['Libraries', 0, 58], ['Assets', 0, 4210], ['Starting', 1, 1]];
     for (const [phase, , total] of phases) { for (let d = 0; d <= total; d += Math.ceil(total / 6)) { emit('launch:progress', { id, phase, done: Math.min(d, total), total }); await wait(160); } }
+    mock.running[id] = true;
     emit('launch:state', { id, state: 'running' });
+    setTimeout(() => emit('host:update', { id, lanPort: 25565, state: 'lan' }), 400);
   },
   searchMods: (p) => mockSearch(p),
   installMod: async (instanceId, source, projectId, title) => { await wait(600); const i = mock.instances.find((x) => x.id === instanceId); i.mods.push({ source, projectId, title, file: `${title}.jar`, enabled: true }); return { added: [{ title }], missing: [] }; },
@@ -196,7 +207,56 @@ const mockApi = {
   setCosmetics: async (patch) => { const { capePng, ...rest } = patch; mock.cosmetics = { ...mock.cosmetics, ...rest, equipped: { ...mock.cosmetics.equipped, ...(rest.equipped || {}) } }; return mock.cosmetics; },
   addCustomCape: async (png, name) => { const id = `custom-${Math.random().toString(16).slice(2, 10)}`; mock.cosmetics.customCapes.unshift({ id, name }); mock.cosmetics.customUrls[id] = png; return mock.cosmetics; },
   removeCustomCape: async (id) => { mock.cosmetics.customCapes = mock.cosmetics.customCapes.filter((c) => c.id !== id); return mock.cosmetics; },
-  hostStatus: async (id) => { const i = mock.instances.find((x) => x.id === id); const server = i.type === 'server'; const okLoader = ['fabric', 'quilt', 'forge', 'neoforge'].includes(i.loader); return { ok: server || okLoader, kind: server ? 'server' : 'e4mc', reason: okLoader || server ? null : 'World hosting needs a Fabric, Quilt, Forge or NeoForge instance (e4mc is a mod).', running: Boolean(mock.hosts[id]), address: mock.hosts[id] || null, e4mcInstalled: i.mods.some((m) => m.projectId === 'qANg5Jrr'), voiceChatInstalled: i.mods.some((m) => m.projectId === '9eGKb6K1'), lan: [{ name: 'en0', address: '192.168.1.42' }], port: server ? 25565 : undefined }; },
+  hostStatus: async (id) => {
+    const i = mock.instances.find((x) => x.id === id); const server = i.type === 'server'; const okLoader = ['fabric', 'quilt', 'forge', 'neoforge'].includes(i.loader);
+    const prov = mock.settings.hostProvider || 'p2p';
+    return {
+      ok: server || okLoader, kind: server ? 'server' : 'e4mc', reason: okLoader || server ? null : 'World hosting needs a Fabric, Quilt, Forge or NeoForge instance (voice chat and e4mc are mods).',
+      provider: prov, providers: MOCK_PROVIDERS, running: Boolean(mock.running && mock.running[id]) || Boolean(mock.hosts[id]), address: prov === 'e4mc' ? mock.hosts[id] || null : null,
+      lanPort: mock.running && mock.running[id] ? 25565 : null, e4mcInstalled: i.mods.some((m) => m.projectId === 'qANg5Jrr'), voiceChatInstalled: i.mods.some((m) => m.projectId === '9eGKb6K1'),
+      voice: mock.voice[id] || { configured: false, port: 24454, voiceHost: '', file: 'config/voicechat/voicechat-server.properties' },
+      lan: [{ name: 'en0', address: '192.168.1.42' }], port: 25565, ddnsName: mock.settings.hostDdnsName || '', platform: 'darwin', p2pAvailable: true,
+    };
+  },
+  hostNetwork: async () => ({ publicIp: '203.0.113.27', lan: [{ name: 'en0', address: '192.168.1.42' }], upnp: null }),
+  upnpMap: async () => { await wait(900); return { ok: true, mcPort: 25565, voicePort: 24454, publicIp: '203.0.113.27', routerIp: '203.0.113.27', gateway: '192.168.1.1', localIp: '192.168.1.42', cgnat: false, mappings: [{ port: 25565, protocol: 'TCP', what: 'Minecraft', ok: true }, { port: 24454, protocol: 'UDP', what: 'Voice chat', ok: true }] }; },
+  upnpUnmap: async () => ({ ok: true }),
+  tailscaleStatus: async () => ({ installed: true, running: true, state: 'Running', ip4: '100.101.42.7', dnsName: 'izaks-macbook.tail3c9e1.ts.net', tailnet: 'izak@example.com', peersOnline: 2, peers: 3, install: { url: 'https://tailscale.com/download/mac', steps: [] }, shareUrl: 'https://login.tailscale.com/admin/machines', inviteUrl: 'https://login.tailscale.com/admin/users' }),
+  setDdnsName: async (n) => { mock.settings.hostDdnsName = String(n || '').trim().toLowerCase(); return { ddnsName: mock.settings.hostDdnsName }; },
+  updateDdns: async () => ({ ok: true }),
+  enableVoiceChat: async (id, provider) => {
+    await wait(800);
+    const i = mock.instances.find((x) => x.id === id);
+    if (!i.mods.some((m) => m.projectId === '9eGKb6K1')) i.mods.push({ source: 'modrinth', projectId: '9eGKb6K1', title: 'Simple Voice Chat', file: 'voicechat-fabric-2.6.27+26.3.jar', versionName: '2.6.27', enabled: true, icon: 'https://cdn.modrinth.com/data/9eGKb6K1/icon.png' });
+    const vh = provider === 'tailscale' ? 'izaks-macbook.tail3c9e1.ts.net:24454' : provider === 'direct' ? `${mock.settings.hostDdnsName || '203.0.113.27'}:24454` : '';
+    mock.voice[id] = { configured: true, port: 24454, voiceHost: vh, file: 'config/voicechat/voicechat-server.properties' };
+    const notes = { p2p: 'voice_host left blank: friends reach voice through their Direct tunnel at localhost.', tailscale: `Friends on your tailnet connect voice to ${vh}.`, direct: `Friends connect voice to ${vh}. Forward UDP 24454 too.` };
+    return { installed: true, provider, voice: mock.voice[id], note: notes[provider] || '', status: await mockApi.hostStatus(id) };
+  },
+  p2pList: async () => mock.p2p,
+  p2pCreateInvite: async (id) => {
+    await wait(700);
+    const s = { id: Math.random().toString(16).slice(2, 14), role: 'host', state: 'waiting-reply', instanceId: id, code: `SATURN-INVITE-${'7VNdjtsgEIXv8xS'.repeat(12)}Q2xvdWQ`, nat: { type: 'cone', publicIp: '203.0.113.27', message: 'Your network allows direct connections.' }, pair: null, error: null, connections: 0, bytesIn: 0, bytesOut: 0, voiceUp: false };
+    mock.p2p = [...mock.p2p, s]; emit('p2p:update', mock.p2p); return s;
+  },
+  p2pAcceptReply: async (sid) => {
+    const upd = (patch) => { mock.p2p = mock.p2p.map((x) => (x.id === sid ? { ...x, ...patch } : x)); emit('p2p:update', mock.p2p); };
+    upd({ state: 'connecting', peerName: 'Steve_Builder' });
+    setTimeout(() => upd({ state: 'connected', pair: { kind: 'p2p', label: 'Direct · peer-to-peer (hole punched)' }, voiceUp: true, connections: 1, bytesIn: 3.4 * 1048576 }), 900);
+    return mock.p2p.find((x) => x.id === sid);
+  },
+  p2pJoin: async () => {
+    await wait(700);
+    const s = { id: Math.random().toString(16).slice(2, 14), role: 'join', state: 'waiting-host', peerName: 'Izak', mcVersion: '26.3', code: `SATURN-REPLY-${'3ZJLa8MwEIXv_S'.repeat(10)}AA`, nat: { type: 'cone', message: 'Your network allows direct connections.' }, localPort: 25565, joinAddress: 'localhost', voicePort: 24454, voiceUp: false, connections: 0, bytesIn: 0, bytesOut: 0 };
+    mock.p2p = [...mock.p2p, s]; emit('p2p:update', mock.p2p);
+    setTimeout(() => { mock.p2p = mock.p2p.map((x) => (x.id === s.id ? { ...x, state: 'connected', pair: { kind: 'p2p', label: 'Direct · peer-to-peer (hole punched)' }, voiceUp: true } : x)); emit('p2p:update', mock.p2p); }, 2500);
+    return s;
+  },
+  p2pClose: async (sid) => { mock.p2p = mock.p2p.filter((x) => x.id !== sid); emit('p2p:update', mock.p2p); return true; },
+  lookupPlayerSkin: async (q) => { await wait(600); const s = starterSkin('explorer'); return { uuid: '069a79f4-44e9-4726-a5be-fca90e38aaf5', name: /^[0-9a-f-]{32,36}$/i.test(q) ? 'Notch' : q, model: 'classic', skin: toDataUrl(s.image), cape: null, legacy: false }; },
+  storageInfo: async () => ({ mode: 'keychain', label: 'macOS Keychain' }),
+  detectJava: async () => [{ path: '/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java', major: 25, managed: false }],
+  copyText: async () => true,
   installHostingMod: async (id, which) => { await wait(700); const i = mock.instances.find((x) => x.id === id); i.mods.push(which === 'voicechat' ? { source: 'modrinth', projectId: '9eGKb6K1', title: 'Simple Voice Chat', file: 'voicechat-fabric-2.6.27+26.3.jar', versionName: '2.6.27', enabled: true, icon: 'https://cdn.modrinth.com/data/9eGKb6K1/icon.png' } : { source: 'modrinth', projectId: 'qANg5Jrr', title: 'e4mc', file: 'e4mc-fabric-6.2.3-modern.jar', versionName: '6.2.3', enabled: true, icon: 'https://cdn.modrinth.com/data/qANg5Jrr/icon.png' }); return { added: [{}], missing: [] }; },
   hostWorld: async (id) => { await wait(900); mock.hosts[id] = 'brave-otter.us.e4mc.link'; emit('host:update', { id, address: mock.hosts[id], state: 'hosting' }); return mockApi.hostStatus(id); },
   micStatus: async () => ({ status: 'granted', label: 'Allowed', tone: 'green', hint: 'Voice chat mods can use your mic.', platform: 'darwin', canPrompt: false }),
@@ -205,7 +265,7 @@ const mockApi = {
   setAppIcon: async (name) => { mock.settings.appIcon = name; return true; },
   pickImageFile: async () => null,
   migrationInfo: async () => ({ migrated: false }),
-  appInfo: async () => ({ version: '0.1.3', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Saturn Client', electron: 'preview' }),
+  appInfo: async () => ({ version: '0.1.4', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Saturn Client', electron: 'preview' }),
 };
 
 export const api = isElectron ? window.glass.api : mockApi;
