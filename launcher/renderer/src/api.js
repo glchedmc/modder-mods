@@ -2,6 +2,8 @@
 // preload bridge). In a plain browser (design previews, screenshots) it falls
 // back to an in-memory mock so every screen can render without the main process.
 import catalog from '../../core/companion-features.json';
+import { starterSkin, STARTERS } from './lib/starterSkins.mjs';
+import { toDataUrl, skinFrontDataUrl } from './lib/image';
 
 export const isElectron = typeof window !== 'undefined' && Boolean(window.glass);
 export const features = catalog;
@@ -21,15 +23,19 @@ const now = Date.now();
 const mock = {
   settings: {
     defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false,
-    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7',
+    theme: 'dark', accent: '#7aa8ff', glassIntensity: 0.7, reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7', sidebarCollapsed: false, sidebarMode: 'icons', appIcon: 'saturn', micPrompted: true, skinAiProvider: 'grok', skinAiGrokModel: 'grok-imagine-image-2.0', skinAiOpenaiModel: 'gpt-image-1',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
   },
-  secrets: { xaiApiKey: true, curseforgeApiKey: true, curseforgeApiKeyCustom: false, curseforgeApiKeyBuiltin: true },
+  secrets: { xaiApiKey: true, openaiApiKey: false, curseforgeApiKey: true, curseforgeApiKeyCustom: false, curseforgeApiKeyBuiltin: true },
+  skins: null,
+  selectedSkin: null,
+  cosmetics: { equipped: { cape: 'saturn', hat: null, wings: null }, capeOnElytra: true, localSkin: true, customCapes: [], customUrls: {}, inGame: { cape: true, hat: false, wings: false } },
+  hosts: {},
   accounts: [],
   instances: [
     { id: 'fabric-26-3', name: 'Fabric 26.3', mcVersion: '26.3', loader: 'fabric', loaderVersion: '0.20.1', type: 'client', accent: '#7aa8ff', icon: 'grass', memoryMb: 6144, companion: true, lastPlayed: new Date(now - 3600e3).toISOString(), playTimeSec: 151200,
       mods: [
-        { source: 'companion', projectId: 'glass-companion', title: 'Glass Companion', file: 'glass-companion-0.1.0.jar', versionName: '0.1.0', enabled: true },
+        { source: 'companion', projectId: 'glass-companion', title: 'Saturn Client Companion', file: 'glass-companion-0.1.1.jar', versionName: '0.1.1', enabled: true },
         { source: 'modrinth', projectId: 'P7dR8mSH', title: 'Fabric API', file: 'fabric-api-0.166.2+26.3.jar', versionName: '0.166.2+26.3', enabled: true, icon: 'https://cdn.modrinth.com/data/P7dR8mSH/icon.png' },
         { source: 'modrinth', projectId: 'AANobbMI', title: 'Sodium', file: 'sodium-fabric-0.8.2+mc26.3.jar', versionName: '0.8.2', enabled: true, icon: 'https://cdn.modrinth.com/data/AANobbMI/icon.png' },
         { source: 'modrinth', projectId: 'gvQqBUqZ', title: 'Lithium', file: 'lithium-fabric-0.17.1+mc26.2.jar', versionName: '0.17.1', enabled: true, icon: 'https://cdn.modrinth.com/data/gvQqBUqZ/icon.png' },
@@ -106,6 +112,14 @@ async function mockSearch({ source, query, projectType = 'mod', loader, gameVers
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function mockSkins() {
+  if (!mock.skins) {
+    mock.skins = STARTERS.map((id, i) => { const s = starterSkin(id); return { id: `00000000000${i}`, name: s.name, variant: s.variant, source: 'starter', createdAt: new Date(now - i * 86400e3).toISOString(), dataUrl: toDataUrl(s.image) }; });
+    mock.selectedSkin = mock.skins[0].id;
+  }
+  return { skins: mock.skins, selected: mock.selectedSkin };
+}
+const signedOut = () => { const e = new Error('Sign in with Microsoft to change your skin on Minecraft servers. Microsoft sign-in is waiting on Mojang approval.'); e.code = 'SIGNED_OUT'; return e; };
 const mockApi = {
   getSettings: async () => mock.settings,
   setSettings: async (patch) => (mock.settings = { ...mock.settings, ...patch }),
@@ -151,7 +165,47 @@ const mockApi = {
   },
   removeBackgroundFile: async () => {},
   backgroundUrl: async () => null,
-  appInfo: async () => ({ version: '0.1.2', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Glass Launcher', electron: 'preview' }),
+  renameMod: async (id, file, opts) => {
+    const i = mock.instances.find((x) => x.id === id); const m = i.mods.find((x) => x.file === file); const undo = {};
+    if ('name' in opts) { undo.name = m.displayName || null; if (opts.name && opts.name !== m.title) m.displayName = opts.name; else delete m.displayName; }
+    if (opts.fileName) { undo.fileName = m.file; m.originalFile = m.originalFile || m.file; m.file = opts.fileName.endsWith('.jar') ? opts.fileName : `${opts.fileName}.jar`; }
+    return { mod: { ...m }, undo };
+  },
+  resetModName: async (id, file) => { const i = mock.instances.find((x) => x.id === id); const m = i.mods.find((x) => x.file === file); const undo = { name: m.displayName || null }; delete m.displayName; if (m.originalFile) { undo.fileName = m.file; m.file = m.originalFile; delete m.originalFile; } return { mod: { ...m }, undo }; },
+  listSkins: async () => mockSkins(),
+  addSkin: async (e) => { mockSkins(); const s = { id: Math.random().toString(16).slice(2, 14).padEnd(12, '0'), name: e.name || 'Untitled skin', variant: e.variant || 'classic', source: e.source || 'upload', createdAt: new Date().toISOString(), dataUrl: e.png }; mock.skins.unshift(s); return s; },
+  updateSkin: async (id, patch) => { const s = mockSkins().skins.find((x) => x.id === id); Object.assign(s, patch); return s; },
+  removeSkin: async (id) => { mockSkins(); mock.skins = mock.skins.filter((x) => x.id !== id); if (mock.selectedSkin === id) mock.selectedSkin = mock.skins[0] && mock.skins[0].id; },
+  selectSkin: async (id) => { mockSkins(); mock.selectedSkin = id; return id; },
+  accountProfile: async () => ({ signedIn: false, skins: [], capes: [] }),
+  applySkin: async () => { throw signedOut(); },
+  setAccountCape: async () => { throw signedOut(); },
+  skinAiProviders: async () => ({ grok: { label: 'Grok', model: 'grok-imagine-image-2.0', secret: 'xaiApiKey', keyUrl: 'https://console.x.ai' }, openai: { label: 'ChatGPT', model: 'gpt-image-1', secret: 'openaiApiKey', keyUrl: 'https://platform.openai.com/api-keys' } }),
+  generateSkinImage: async ({ provider }) => {
+    if (!mock.secrets[provider === 'openai' ? 'openaiApiKey' : 'xaiApiKey']) { const e = new Error(`Add your ${provider === 'openai' ? 'ChatGPT' : 'Grok'} API key in Settings → Accounts & Keys.`); e.code = 'NO_KEY'; throw e; }
+    await wait(1400);
+    const s = starterSkin('nova');
+    const front = await skinFrontDataUrl(toDataUrl(s.image), s.variant, 16);
+    const c = document.createElement('canvas'); c.width = 512; c.height = 768; const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 512, 768);
+    const im = new Image(); await new Promise((r) => { im.onload = r; im.src = front; });
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(im, 128, 128, 256, 512);
+    return { b64: c.toDataURL('image/png').split(',')[1], mime: 'image/png', model: 'grok-imagine-image-2.0' };
+  },
+  getCosmetics: async () => mock.cosmetics,
+  setCosmetics: async (patch) => { const { capePng, ...rest } = patch; mock.cosmetics = { ...mock.cosmetics, ...rest, equipped: { ...mock.cosmetics.equipped, ...(rest.equipped || {}) } }; return mock.cosmetics; },
+  addCustomCape: async (png, name) => { const id = `custom-${Math.random().toString(16).slice(2, 10)}`; mock.cosmetics.customCapes.unshift({ id, name }); mock.cosmetics.customUrls[id] = png; return mock.cosmetics; },
+  removeCustomCape: async (id) => { mock.cosmetics.customCapes = mock.cosmetics.customCapes.filter((c) => c.id !== id); return mock.cosmetics; },
+  hostStatus: async (id) => { const i = mock.instances.find((x) => x.id === id); const server = i.type === 'server'; const okLoader = ['fabric', 'quilt', 'forge', 'neoforge'].includes(i.loader); return { ok: server || okLoader, kind: server ? 'server' : 'e4mc', reason: okLoader || server ? null : 'World hosting needs a Fabric, Quilt, Forge or NeoForge instance (e4mc is a mod).', running: Boolean(mock.hosts[id]), address: mock.hosts[id] || null, e4mcInstalled: i.mods.some((m) => m.projectId === 'qANg5Jrr'), voiceChatInstalled: i.mods.some((m) => m.projectId === '9eGKb6K1'), lan: [{ name: 'en0', address: '192.168.1.42' }], port: server ? 25565 : undefined }; },
+  installHostingMod: async (id, which) => { await wait(700); const i = mock.instances.find((x) => x.id === id); i.mods.push(which === 'voicechat' ? { source: 'modrinth', projectId: '9eGKb6K1', title: 'Simple Voice Chat', file: 'voicechat-fabric-2.6.27+26.3.jar', versionName: '2.6.27', enabled: true, icon: 'https://cdn.modrinth.com/data/9eGKb6K1/icon.png' } : { source: 'modrinth', projectId: 'qANg5Jrr', title: 'e4mc', file: 'e4mc-fabric-6.2.3-modern.jar', versionName: '6.2.3', enabled: true, icon: 'https://cdn.modrinth.com/data/qANg5Jrr/icon.png' }); return { added: [{}], missing: [] }; },
+  hostWorld: async (id) => { await wait(900); mock.hosts[id] = 'brave-otter.us.e4mc.link'; emit('host:update', { id, address: mock.hosts[id], state: 'hosting' }); return mockApi.hostStatus(id); },
+  micStatus: async () => ({ status: 'granted', label: 'Allowed', tone: 'green', hint: 'Voice chat mods can use your mic.', platform: 'darwin', canPrompt: false }),
+  requestMic: async () => mockApi.micStatus(),
+  openMicSettings: async () => true,
+  setAppIcon: async (name) => { mock.settings.appIcon = name; return true; },
+  pickImageFile: async () => null,
+  migrationInfo: async () => ({ migrated: false }),
+  appInfo: async () => ({ version: '0.1.3', platform: 'darwin', arch: 'arm64', dataDir: '~/Library/Application Support/Saturn Client', electron: 'preview' }),
 };
 
 export const api = isElectron ? window.glass.api : mockApi;
