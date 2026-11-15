@@ -15,12 +15,18 @@ async function getManifest({ force = false } = {}) {
   return manifestCache;
 }
 
-/** Version list for the picker: releases first, optional snapshots. */
-async function listVersions({ snapshots = false } = {}) {
+/** Version list for the picker: releases, plus snapshots and/or old_beta/old_alpha when asked. */
+async function listVersions({ snapshots = false, old = false } = {}) {
   const m = await getManifest();
   return m.versions
-    .filter((v) => v.type === 'release' || (snapshots && v.type === 'snapshot'))
+    .filter((v) => v.type === 'release' || (snapshots && v.type === 'snapshot') || (old && (v.type === 'old_beta' || v.type === 'old_alpha')))
     .map((v) => ({ id: v.id, type: v.type, releaseTime: v.releaseTime }));
+}
+
+/** Java major version a vanilla version JSON asks for. Versions before 1.7 have no javaVersion and run on Java 8. */
+function javaMajorFor(version) {
+  const n = version && version.javaVersion && Number(version.javaVersion.majorVersion);
+  return Number.isInteger(n) && n > 0 ? n : 8;
 }
 
 async function readJson(file) {
@@ -97,7 +103,7 @@ async function resolveVersion(dirs, id) {
   return json;
 }
 
-module.exports = {
+module.exports = { javaMajorFor,
   MANIFEST_URL, DEFAULT_VERSION, getManifest, listVersions, getVanillaVersion,
   mergeVersions, resolveVersion, readJson, writeJson,
 };

@@ -171,6 +171,22 @@ async function installClientLoader(loader, dirs, mc, loaderVersion, opts = {}) {
   }
 }
 
+/**
+ * Which client loaders have a build for `mc`. Fabric/Quilt usually support
+ * snapshots within days; Forge/NeoForge usually don't. A loader whose lookup
+ * fails (offline) counts as unavailable, so the picker falls back to vanilla.
+ */
+async function availableLoaders(mc, { list = listLoaderVersions, timeoutMs = 8000 } = {}) {
+  const out = { vanilla: true };
+  await Promise.all(['fabric', 'quilt', 'forge', 'neoforge'].map(async (l) => {
+    try {
+      const v = await Promise.race([list(l, mc), new Promise((_, rej) => { const t = setTimeout(() => rej(new Error('timeout')), timeoutMs); if (t.unref) t.unref(); })]);
+      out[l] = Array.isArray(v) && v.length > 0;
+    } catch { out[l] = false; }
+  }));
+  return out;
+}
+
 module.exports = {
-  LOADERS, fabricServerJarUrl, listLoaderVersions, installClientLoader, installServer, neoforgePrefix, installerUrl,
+  availableLoaders, LOADERS, fabricServerJarUrl, listLoaderVersions, installClientLoader, installServer, neoforgePrefix, installerUrl,
 };

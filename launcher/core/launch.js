@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 const AdmZip = require('adm-zip');
 const { rulesAllow } = require('./rules');
 const { resolveLibraries } = require('./libraries');
-const { assetFiles } = require('./assets');
+const { assetFiles, legacyAssetDir, materializeLegacyAssets } = require('./assets');
 const { downloadAll, download } = require('./net');
 const { cpSeparator } = require('./platform');
 const { resolveVersion } = require('./mojang');
@@ -58,7 +58,7 @@ function buildLaunch({ dirs, version, instance, instanceDir, account, platform, 
     version_name: version.id,
     game_directory: paths.gameDir,
     assets_root: dirs.assets,
-    game_assets: dirs.assets,
+    game_assets: legacyAssetDir(version, dirs.assets) || dirs.assets,
     assets_index_name: version.assetIndex ? version.assetIndex.id : version.assets,
     auth_uuid: account.uuid,
     auth_access_token: account.accessToken,
@@ -144,6 +144,7 @@ async function prepare({ dirs, instance, instanceDir, account, platform, javaPat
     const f = version.logging.client.file;
     await download(f.url, path.join(dirs.assets, 'log_configs', f.id), { sha1: f.sha1 });
   }
+  await materializeLegacyAssets(version, dirs.assets, instanceDir);
   if (spec.natives.length) await extractNatives(spec.natives, spec.paths.nativesDir);
   await fsp.mkdir(path.join(spec.paths.nativesDir), { recursive: true });
   return { spec, version };
