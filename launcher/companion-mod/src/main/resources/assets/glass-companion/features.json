@@ -6,6 +6,11 @@
       "icon": "gauge"
     },
     {
+      "id": "waypoints",
+      "label": "Waypoints",
+      "icon": "pin"
+    },
+    {
       "id": "visual",
       "label": "Visuals",
       "icon": "sparkles"
@@ -230,12 +235,20 @@
     {
       "key": "itemCounter",
       "group": "hud",
-      "label": "Item counter",
+      "label": "Held item count",
       "type": "bool",
-      "default": false,
-      "hint": "How many of your held item (or arrows for a bow) you carry.",
+      "default": true,
+      "hint": "Total of the item in your hand across your inventory (or arrows for a bow), plus durability for tools. Drag and resize it in Edit HUD.",
       "module": true,
       "lunar": "Item Counter"
+    },
+    {
+      "key": "itemCounterDurability",
+      "group": "hud",
+      "label": "Held tool durability",
+      "type": "bool",
+      "default": true,
+      "hint": "Durability left on the held tool, colored like Armor status."
     },
     {
       "key": "deathPoint",
@@ -264,6 +277,54 @@
       ],
       "from": "Fray Bell",
       "lunar": "Armor Status"
+    },
+    {
+      "key": "waypoints",
+      "group": "waypoints",
+      "label": "Waypoints",
+      "type": "bool",
+      "default": true,
+      "hint": "B adds a waypoint where you stand, J opens the list. Saved per world or server and per dimension.",
+      "module": true,
+      "standalone": [
+        "xaerominimap",
+        "xaeroworldmap",
+        "journeymap",
+        "voxelmap"
+      ],
+      "lunar": "Waypoints"
+    },
+    {
+      "key": "waypointBeams",
+      "group": "waypoints",
+      "label": "Beacon beams",
+      "type": "bool",
+      "default": true,
+      "hint": "A colored beam rises from each waypoint, visible from far away."
+    },
+    {
+      "key": "waypointLabels",
+      "group": "waypoints",
+      "label": "Name and distance tags",
+      "type": "bool",
+      "default": true,
+      "hint": "Glass tags over each waypoint with its distance."
+    },
+    {
+      "key": "waypointDeath",
+      "group": "waypoints",
+      "label": "Death waypoints",
+      "type": "bool",
+      "default": true,
+      "hint": "Each death adds a red waypoint (the last 5 are kept)."
+    },
+    {
+      "key": "waypointMinimap",
+      "group": "waypoints",
+      "label": "Show on Corner Atlas minimap",
+      "type": "bool",
+      "default": true,
+      "hint": "Markers on the Corner Atlas minimap when that mod is installed."
     },
     {
       "key": "hudScale",

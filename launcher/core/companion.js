@@ -25,12 +25,15 @@ function sanitize(config) {
     } else if (f.type === 'choice') {
       if (f.options.includes(String(v))) out[f.key] = String(v);
     } else if (f.type === 'layout') {
-      // HUD editor positions: {element: [x, y]} as fractions of the screen.
+      // HUD editor placement: {element: [x, y]} as fractions of the screen, or
+      // [x, y, scale] once the element was resized (scale 0.5–3, 1 = default size).
       const lay = {};
       if (v && typeof v === 'object' && !Array.isArray(v)) {
         for (const [k, xy] of Object.entries(v)) {
-          if (/^[a-z][a-zA-Z]{0,31}$/.test(k) && Array.isArray(xy) && xy.length === 2 && xy.every((n) => Number.isFinite(Number(n)))) {
-            lay[k] = xy.map((n) => Math.min(1, Math.max(0, Number(n))));
+          if (/^[a-z][a-zA-Z]{0,31}$/.test(k) && Array.isArray(xy) && (xy.length === 2 || xy.length === 3) && xy.every((n) => Number.isFinite(Number(n)))) {
+            const pos = xy.slice(0, 2).map((n) => Math.min(1, Math.max(0, Number(n))));
+            if (xy.length === 3) pos.push(Math.min(3, Math.max(0.5, Number(xy[2]))));
+            lay[k] = pos;
           }
         }
       }

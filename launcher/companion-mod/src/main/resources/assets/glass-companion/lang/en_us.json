@@ -14,5 +14,7 @@
   "echo-arrow.filter.all": "Echo Arrow filter: all sounds",
   "echo-arrow.filter.hostile": "Echo Arrow filter: hostile sounds",
   "echo-arrow.filter.notes": "Echo Arrow filter: note blocks",
-  "echo-arrow.filter.notes_and_hostile": "Echo Arrow filter: note blocks and hostile sounds"
+  "echo-arrow.filter.notes_and_hostile": "Echo Arrow filter: note blocks and hostile sounds",
+  "key.glass-companion.waypoint_add": "Add waypoint here",
+  "key.glass-companion.waypoint_list": "Waypoint list"
 }
