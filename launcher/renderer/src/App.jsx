@@ -1,7 +1,9 @@
+import { MOD } from './lib/platform.mjs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from './icons';
 import { api, on, isElectron, features } from './api';
 import { Wallpaper } from './components/backgrounds';
+import { glassVars, isSolid } from './lib/glass.mjs';
 import Home from './views/Home';
 import Library from './views/Library';
 import Instance from './views/Instance';
@@ -97,21 +99,26 @@ export default function App() {
     root.dataset.theme = dark ? 'dark' : 'light';
     root.style.setProperty('--accent', settings.accent);
     root.style.setProperty('--accent-rgb', hexToRgb(settings.accent));
-    root.style.setProperty('--glass-blur', `${Math.round(10 + settings.glassIntensity * 30)}px`);
+    const vars = glassVars(settings.glassStrength, { reduceTransparency: settings.reduceTransparency, theme: root.dataset.theme });
+    for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+    document.body.classList.toggle('glass-solid', isSolid(settings.glassStrength, settings.reduceTransparency));
     document.body.classList.toggle('reduce-motion', settings.reduceMotion);
   }, [settings]);
 
-  // Cmd+\\ (Ctrl+\\ elsewhere) toggles the sidebar.
+  // Cmd+\\ (Ctrl+\\ elsewhere) toggles the sidebar; Cmd/Ctrl+K opens Discover.
   useEffect(() => {
     const k = (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === '\\' || e.code === 'Backslash')) {
         e.preventDefault();
         setSettings((cur) => { if (!cur) return cur; const next = { ...cur, sidebarCollapsed: !cur.sidebarCollapsed }; api.setSettings({ sidebarCollapsed: next.sidebarCollapsed }); return next; });
+      } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        go('discover');
       }
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, []);
+  }, [go]);
 
   if (!settings) return <Wallpaper settings={null} />;
 
@@ -140,6 +147,7 @@ export default function App() {
   const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host };
   const View = views[route] || Home;
   const isMac = isElectron && navigator.userAgent.includes('Mac');
+  const isLinux = isElectron && !isMac && navigator.userAgent.includes('Linux');
   const collapsed = Boolean(settings.sidebarCollapsed);
   const iconsOnly = collapsed && settings.sidebarMode !== 'hidden';
   const hidden = collapsed && settings.sidebarMode === 'hidden';
@@ -147,7 +155,7 @@ export default function App() {
   return (
     <>
       <Wallpaper settings={settings} />
-      <div className={`app ${isMac ? 'mac' : ''} ${collapsed ? `sb-collapsed sb-${settings.sidebarMode === 'hidden' ? 'hidden' : 'icons'}` : ''}`}>
+      <div className={`app ${isMac ? 'mac' : ''} ${isLinux ? 'linux' : ''} ${collapsed ? `sb-collapsed sb-${settings.sidebarMode === 'hidden' ? 'hidden' : 'icons'}` : ''}`}>
         <aside className="sidebar glass" aria-hidden={hidden}>
           <div className="traffic"><i /><i /><i /></div>
           <div className="brand"><SaturnMark size={30} /><div className="brand-text"><b>Saturn</b><small>Client</small></div></div>
@@ -178,7 +186,7 @@ export default function App() {
 
         <main className="main">
           <header className="toolbar">
-            <button className="btn ghost icon-btn sidebar-toggle" title={`${collapsed ? 'Show' : 'Hide'} sidebar (⌘\\)`} aria-label="Toggle sidebar" onClick={app.toggleSidebar}><Icon name="sidebar" size={18} /></button>
+            <button className="btn ghost icon-btn sidebar-toggle" title={`${collapsed ? 'Show' : 'Hide'} sidebar (${MOD}\\)`} aria-label="Toggle sidebar" onClick={app.toggleSidebar}><Icon name="sidebar" size={18} /></button>
             <div>
               <h1>{route === 'instance' && selected ? 'Instance' : title}</h1>
               {sub && <div className="sub">{sub}</div>}
@@ -188,7 +196,7 @@ export default function App() {
               <div className="activity glass flat"><span className="spinner" /><div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 600 }}>{launchState.phase}</div><div className="progress" style={{ marginTop: 4 }}><i style={{ width: `${launchState.total ? (launchState.done / launchState.total) * 100 : 0}%` }} /></div></div></div>
             )}
             {route !== 'discover' && (
-              <div className="field search" onClick={() => go('discover')}><Icon name="search" size={16} /><input placeholder="Search mods, packs, shaders" readOnly /><span className="kbd">⌘K</span></div>
+              <div className="field search" onClick={() => go('discover')}><Icon name="search" size={16} /><input placeholder="Search mods, packs, shaders" readOnly /><span className="kbd">{MOD}K</span></div>
             )}
           </header>
           <div className="content" key={route + (params.id || '')}>
