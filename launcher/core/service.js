@@ -41,7 +41,6 @@ class LauncherService {
     this.dirs = layout(dataDir);
     this.secrets = new SecretStore(this.dirs.secrets, cipher);
     this.resourcesDir = resourcesDir;
-    this.emit = emit;
     this.platform = platform;
     this.extraJavaDirs = extraJavaDirs;
     this.jobs = new Map();
@@ -52,6 +51,15 @@ class LauncherService {
     this.hosts = new Map(); // instanceId -> {address, since}
     this.lanPorts = new Map(); // instanceId -> Open to LAN port seen in the log
     this.p2p = null; // P2PManager, attached by the Electron main process
+    this.runningMeta = new Map(); // instanceId -> {name, mcVersion, loader} while the game runs
+    this.social = null; // SocialManager (Friends & chat)
+    this.socialCache = { displayName: '', mcName: null };
+    const rawEmit = emit;
+    this.emit = (ch, data) => {
+      rawEmit(ch, data);
+      if (this.social && (ch === 'launch:state' || ch === 'host:update')) setTimeout(() => this.social && this.social.refreshPresence(), 50);
+      if (ch === 'auth:update' && data && data.state === 'done') { this.socialCache.mcName = data.name || null; if (this.social) this.social.profileChanged().catch(() => {}); }
+    };
     this.net = { publicIp: null, checkedAt: 0, upnp: null };
   }
 
@@ -202,7 +210,7 @@ class LauncherService {
   }
 
   // ---------- launching ----------
-  async launch(id) {
+  async launch(id, opts = {}) {
     if (this.running.has(id)) throw new Error('Already running');
     const meta = await instances.get(this.dirs, id);
     const dir = this.instanceDir(id);
@@ -219,6 +227,8 @@ class LauncherService {
     await this.syncCosmeticsTo(meta, dir).catch(() => {});
     const account = await this.launchAccount();
     const { spec } = await launch.prepare({ dirs: this.dirs, instance: meta, instanceDir: dir, account, platform: this.platform, javaPath, progress });
+    // Friends → Join: drop straight into the friend's world (Quick Play, 1.20+).
+    if (opts && opts.server && /^[\w.-]+(:\d{1,5})?$/.test(String(opts.server))) spec.args.push('--quickPlayMultiplayer', String(opts.server));
     progress({ phase: 'Starting', done: 1, total: 1 });
     this.emit('launch:log', { id, line: redact(launch.redactedCommand(spec).join(' ')) });
     const started = Date.now();
@@ -226,6 +236,8 @@ class LauncherService {
       onLine: (line) => { this.emit('launch:log', { id, line: redact(line) }); this.watchHostLine(id, line); },
       onExit: async (code) => {
         this.running.delete(id);
+        this.runningMeta.delete(id);
+        this.lanPorts.delete(id);
         if (this.hosts.has(id)) { this.hosts.delete(id); this.emit('host:update', { id, address: null, state: 'stopped' }); }
         const m = await instances.get(this.dirs, id);
         await instances.save(this.dirs, { ...m, playTimeSec: (m.playTimeSec || 0) + Math.round((Date.now() - started) / 1000) });
@@ -233,6 +245,7 @@ class LauncherService {
       },
     });
     this.running.set(id, child);
+    this.runningMeta.set(id, { name: meta.name, mcVersion: meta.mcVersion, loader: meta.loader });
     await instances.save(this.dirs, { ...meta, lastPlayed: new Date().toISOString() });
     this.emit('launch:state', { id, state: 'running' });
     return { pid: child.pid };
@@ -651,6 +664,99 @@ class LauncherService {
     return this.needP2P().join(code, { name: (acc && acc.name) || 'Friend' });
   }
   p2pClose(sessionId) { return this.needP2P().close(sessionId); }
+
+  // ---------- Friends & chat (Nostr) ----------
+  /** Starts Friends. Electron passes notify/isFocused; tests can pass a local relay list. */
+  async startSocial({ notify = () => {}, isFocused = () => false, relays, WebSocket } = {}) {
+    this.socialStartOpts = { notify, isFocused, relays, WebSocket };
+    const s = await this.getSettings();
+    if (!s.socialEnabled) return null;
+    const { SocialManager } = require('./social/manager');
+    const { DEFAULT_RELAYS } = require('./social/pool');
+    this.socialCache.displayName = s.socialDisplayName || '';
+    const acc = (await this.listAccounts().catch(() => []))[0];
+    this.socialCache.mcName = (acc && acc.name) || null;
+    this.socialNotifications = s.socialNotifications !== false;
+    this.social = new SocialManager({
+      file: path.join(this.dirs.root || path.dirname(this.dirs.settings), 'social.json'),
+      keyStore: { get: () => this.secrets.get('nostrKey'), set: (v) => this.secrets.set('nostrKey', v) },
+      relays: relays || (s.socialRelays && s.socialRelays.length ? s.socialRelays : DEFAULT_RELAYS),
+      discoverable: s.socialDiscoverable !== false,
+      WebSocket,
+      emit: (ch, d) => this.emit(ch, d),
+      hooks: {
+        profile: () => ({ displayName: this.socialCache.displayName, mcName: this.socialCache.mcName }),
+        presence: () => {
+          const first = [...this.runningMeta.values()][0];
+          return first ? { state: 'playing', instance: first } : { state: 'online', instance: null };
+        },
+        hostState: (id) => this.socialHostState(id),
+        instanceInfo: async (id) => { const m = await instances.get(this.dirs, id); return { name: m.name, mcVersion: m.mcVersion, loader: m.loader }; },
+        p2pCreateInvite: (id) => this.p2pCreateInvite(id),
+        p2pAcceptReply: (sid, code) => this.p2pAcceptReply(sid, code),
+        p2pJoin: (code, name) => this.needP2P().join(code, { name }),
+        p2pClose: (sid) => this.p2p && this.p2p.close(sid),
+        notify: (n) => { if (this.socialNotifications) notify(n); },
+        isFocused,
+      },
+    });
+    await this.social.start();
+    return this.social.summary();
+  }
+  socialHostState(id) {
+    const running = this.running.has(id);
+    if (!running) return { running: false, hosting: false, reason: 'The host’s world isn’t open right now.' };
+    const server = !this.runningMeta.has(id); // servers don't go through launch()
+    const hosting = server || this.lanPorts.has(id);
+    return { running, hosting, reason: hosting ? null : 'The host needs to open the world to LAN (Esc → Open to LAN).' };
+  }
+  needSocial() { if (!this.social) throw new Error('Friends is turned off. Turn it on in Settings → Friends.'); return this.social; }
+  socialState() { return this.social ? this.social.summary() : { ready: false, disabled: true }; }
+  socialMessages(pk) { return this.needSocial().messages(pk); }
+  socialSend(pk, text) { return this.needSocial().sendMessage(pk, text); }
+  socialFind(input) { return this.needSocial().findByCode(input); }
+  socialAddFriend(input) { return this.needSocial().addFriend(input); }
+  socialAccept(pk) { return this.needSocial().acceptFriend(pk); }
+  socialDecline(pk) { return this.needSocial().declineFriend(pk); }
+  socialRemove(pk) { return this.needSocial().removeFriend(pk); }
+  socialSetActive(pk) { return this.social ? this.social.setActiveChat(pk) : false; }
+  socialSaveWorld(w) { return this.needSocial().saveWorld(w); }
+  socialRemoveWorld(id) { return this.needSocial().removeWorld(id); }
+  socialInvite(pk, worldId) { return this.needSocial().inviteToWorld(pk, worldId); }
+  socialJoin(host, worldId) { return this.needSocial().joinWorld(host, worldId); }
+  socialCancelJoin(reqId) { return this.needSocial().cancelJoin(reqId); }
+  async socialQr() {
+    const me = this.needSocial().me();
+    const QR = require('qrcode');
+    return QR.toDataURL(`nostr:${me.npub}`, { margin: 1, width: 360, color: { dark: '#14163a', light: '#ffffff' } });
+  }
+  /** Launches an instance straight into the friend's world once the Direct tunnel is up. */
+  async socialPlay(reqId, instanceId) {
+    const j = this.needSocial().joins.get(reqId);
+    if (!j || j.state !== 'connected') throw new Error('Not connected yet.');
+    return this.launch(instanceId, { server: j.joinAddress });
+  }
+  async socialSetProfile(patch = {}) {
+    const keys = ['socialDisplayName', 'socialDiscoverable', 'socialRelays', 'socialNotifications', 'socialEnabled'];
+    const clean = {};
+    for (const k of keys) if (k in patch) clean[k] = patch[k];
+    if ('socialDisplayName' in clean) clean.socialDisplayName = String(clean.socialDisplayName || '').slice(0, 32);
+    if ('socialRelays' in clean) clean.socialRelays = (Array.isArray(clean.socialRelays) ? clean.socialRelays : []).map((u) => String(u).trim()).filter((u) => /^wss?:\/\/\S+$/i.test(u)).slice(0, 12);
+    const s = await this.setSettings(clean);
+    this.socialCache.displayName = s.socialDisplayName || '';
+    this.socialNotifications = s.socialNotifications !== false;
+    if (this.social) {
+      if ('socialRelays' in clean) this.social.setRelays(s.socialRelays.length ? s.socialRelays : require('./social/pool').DEFAULT_RELAYS);
+      if ('socialDiscoverable' in clean) await this.social.setDiscoverable(s.socialDiscoverable);
+      if ('socialDisplayName' in clean) await this.social.profileChanged();
+    }
+    if ('socialEnabled' in clean) {
+      if (!s.socialEnabled && this.social) { await this.social.stop(); this.social = null; this.emit('social:update', { ready: false, disabled: true }); }
+      else if (s.socialEnabled && !this.social && this.socialStartOpts) await this.startSocial(this.socialStartOpts);
+    }
+    return this.socialState();
+  }
+  async stopSocial() { if (this.social) await this.social.stop(); }
 
   // ---------- system ----------
   storageInfo() { return { ...this.secretStorage }; }

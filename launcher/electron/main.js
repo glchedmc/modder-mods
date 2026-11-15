@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage, Notification } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { LauncherService } = require('../core/service');
@@ -120,6 +120,8 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava',
+  'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
+  'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
 
 app.whenReady().then(async () => {
@@ -133,10 +135,26 @@ app.whenReady().then(async () => {
   }).init();
   // Direct (free) hosting: WebRTC runs in a hidden window; sockets stay here.
   try {
-    const p2p = startP2P({ emit, hostPort: (id) => service.hostGamePort(id), voicePort: (id) => service.hostVoicePort(id) });
+    const p2pEmit = (ch, data) => { emit(ch, data); if (ch === 'p2p:update' && service.social) service.social.onP2PUpdate(data); };
+    const p2p = startP2P({ emit: p2pEmit, hostPort: (id) => service.hostGamePort(id), voicePort: (id) => service.hostVoicePort(id) });
     service.attachP2P(p2p.manager);
     app.on('before-quit', () => { try { p2p.manager.closeAll(); } catch { /* quitting */ } });
   } catch (e) { console.error('P2P unavailable:', e.message); }
+
+  // Friends & chat: encrypted DMs over public Nostr relays, desktop notifications when the window isn't focused.
+  service.startSocial({
+    isFocused: () => Boolean(win && !win.isDestroyed() && win.isFocused()),
+    notify: (n) => {
+      if (win && !win.isDestroyed() && win.isFocused()) return; // the app shows its own toast
+      if (!Notification.isSupported()) return;
+      const note = new Notification({ title: n.title, body: String(n.body || '').slice(0, 180), silent: false });
+      note.on('click', () => { if (!win || win.isDestroyed()) return; win.show(); win.focus(); emit('nav', { route: 'friends', params: n.pk ? { pk: n.pk } : {} }); });
+      note.show();
+    },
+  }).then(() => updateBadge()).catch((e) => console.error('Friends unavailable:', e.message));
+  const updateBadge = () => { try { const n = service.social ? service.social.unreadTotal() + service.social.summary().requests : 0; app.setBadgeCount(n); } catch { /* unsupported */ } };
+  setInterval(updateBadge, 5000).unref();
+  app.on('before-quit', () => { service.stopSocial().catch(() => {}); });
 
   for (const m of METHODS) {
     ipcMain.handle(`api:${m}`, async (_e, ...args) => {

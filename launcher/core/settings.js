@@ -40,6 +40,11 @@ const DEFAULTS = {
   skinAiOpenaiModel: 'gpt-image-1',
   hostProvider: 'p2p', // p2p | tailscale | direct | e4mc
   hostDdnsName: '',
+  socialEnabled: true, // Friends & chat over Nostr relays
+  socialDisplayName: '', // shown until Microsoft sign-in gives a Minecraft name
+  socialDiscoverable: true, // publish a profile so friend codes can be looked up
+  socialRelays: [], // empty = built-in list
+  socialNotifications: true,
 };
 
 function merge(base, over) {

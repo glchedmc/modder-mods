@@ -18,6 +18,8 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava', 'copyText',
+  'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
+  'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
 
 const api = {};
@@ -29,7 +31,7 @@ for (const m of METHODS) {
   };
 }
 
-const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update', 'host:update', 'p2p:update'];
+const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update', 'host:update', 'p2p:update', 'social:update', 'social:event', 'nav'];
 contextBridge.exposeInMainWorld('glass', {
   api,
   pathsFromFiles(fileList) {
