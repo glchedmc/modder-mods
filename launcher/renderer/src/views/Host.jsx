@@ -87,6 +87,8 @@ function P2PPanel({ app, inst, st, sessions, copy }) {
         <li><Icon name="peers" size={14} />Your friend opens <b>Host World → Join a friend</b> in Saturn Client, pastes it and sends back a reply code.</li>
         <li><Icon name="check" size={14} />Paste the reply here. They join with <b className="mono">localhost</b> in Direct Connection.</li>
       </ol>
+      <div className="notice glass flat" style={{ marginBottom: 10 }}><Icon name="peers" size={16} /><div><b>Skip the codes:</b> share this world with friends in <b>Friends → Worlds</b>. Members get a Join button while you host.</div>
+        <button className="btn sm" style={{ marginLeft: 'auto' }} onClick={() => app.go('friends', { tab: 'worlds' })}>Open Friends</button></div>
       {pending && (
         <div className="p2p-exchange">
           <div className="form-label">Invite code for your friend</div>

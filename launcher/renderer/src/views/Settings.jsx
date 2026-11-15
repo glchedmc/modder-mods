@@ -34,6 +34,7 @@ const SECTIONS = [
   ['game', 'Java & Memory', 'java'],
   ['companion', 'Companion Mod', 'sparkles'],
   ['voice', 'Voice & Mic', 'mic'],
+  ['friends', 'Friends', 'peers'],
   ['keys', 'Accounts & Keys', 'key'],
   ['about', 'About', 'info'],
 ];
@@ -95,6 +96,36 @@ function SignInSheet({ onClose, app }) {
 
 let storageCache = null;
 const storageLabel = () => (storageCache ? storageCache.label : 'Secure storage');
+
+
+const BUILTIN_RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom', 'wss://offchain.pub', 'wss://relay.damus.io'];
+function FriendsSettings({ app }) {
+  const s = app.settings;
+  const [name, setName] = useState(s.socialDisplayName || '');
+  const [relays, setRelays] = useState((s.socialRelays && s.socialRelays.length ? s.socialRelays : BUILTIN_RELAYS).join('\n'));
+  const [st, setSt] = useState(null);
+  useEffect(() => { api.socialState().then(setSt).catch(() => {}); }, []);
+  const save = async (patch, msg) => { try { setSt(await api.socialSetProfile(patch)); await app.refresh(); if (msg) app.toast(msg, 'ok'); } catch (e) { app.toast(e.message, 'error'); } };
+  const me = st && st.me;
+  return <>
+    <div className="group-title"><Icon name="peers" size={13} />Friends & chat</div>
+    <div className="group glass">
+      <div className="setting"><div className="label"><b>Friends</b><span>Chat, presence and one-click joins over free public relays.</span></div><Switch on={s.socialEnabled !== false} onChange={(v) => save({ socialEnabled: v })} /></div>
+      <div className="setting"><div className="label"><b>Display name</b><span>{app.account ? `Friends see your Minecraft name (${app.account.name}).` : 'Shown to friends until you sign in with Microsoft.'}</span></div>
+        <div className="row" style={{ gap: 8 }}><div className="field" style={{ width: 200 }}><input value={name} maxLength={32} placeholder="Your name" onChange={(e) => setName(e.target.value)} /></div><button className="btn sm" onClick={() => save({ socialDisplayName: name.trim() }, 'Name saved')}>Save</button></div></div>
+      <div className="setting"><div className="label"><b>Findable by friend code</b><span>Publishes your name with your code so friends can look it up. Off: share your npub instead.</span></div><Switch on={s.socialDiscoverable !== false} onChange={(v) => save({ socialDiscoverable: v })} /></div>
+      <div className="setting"><div className="label"><b>Notifications</b><span>Desktop alerts for messages, invites and requests while Saturn is in the background.</span></div><Switch on={s.socialNotifications !== false} onChange={(v) => save({ socialNotifications: v })} /></div>
+      {me && <div className="setting"><div className="label"><b>Your identity</b><span className="mono" style={{ wordBreak: 'break-all' }}>{me.npub}</span></div><button className="btn sm" onClick={async () => { await api.copyText(me.npub); app.toast('npub copied', 'ok'); }}><Icon name="copy" size={13} />Copy</button></div>}
+    </div>
+    <div className="group-title"><Icon name="globe" size={13} />Relays</div>
+    <div className="group glass">
+      <div className="setting" style={{ alignItems: 'flex-start' }}><div className="label"><b>Relay list</b><span>One wss:// address per line. Use at least two that both of you can reach. Relays see encrypted blobs and timing, never the text.</span>
+        {st && st.relays && <div className="relay-status">{st.relays.map((r) => <span key={r.url} className={`pill ${r.state === 'open' ? 'green' : r.state === 'error' ? 'red' : ''}`} title={r.error || r.state}>{r.url.replace(/^wss?:\/\//, '')}</span>)}</div>}</div>
+        <div className="col" style={{ gap: 8, width: 300 }}><textarea className="code-input" rows={5} value={relays} onChange={(e) => setRelays(e.target.value)} />
+          <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}><button className="btn sm ghost" onClick={() => { setRelays(BUILTIN_RELAYS.join('\n')); save({ socialRelays: [] }, 'Using the built-in relays'); }}>Reset</button><button className="btn sm" onClick={() => save({ socialRelays: relays.split(/\s+/).filter(Boolean) }, 'Relays saved')}>Save</button></div></div></div>
+    </div>
+  </>;
+}
 
 export default function Settings({ app }) {
   const [section, setSection] = useState(app.params.section || 'general');
@@ -208,6 +239,8 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Voice chat key</b><span>Push-to-talk is set inside the game (default: Caps Lock).</span></div></div>
           </div>
         </>}
+
+        {section === 'friends' && <FriendsSettings app={app} />}
 
         {section === 'companion' && <CompanionSettings app={app} instance={app.selected && app.selected.companion ? app.selected : null} />}
 
