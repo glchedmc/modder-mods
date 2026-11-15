@@ -1,6 +1,6 @@
 'use strict';
 // Secret storage. In the app, values are encrypted with Electron's safeStorage,
-// whose key lives in the macOS Keychain ("Glass Launcher Safe Storage"), and
+// whose key lives in the macOS Keychain ("Saturn Client Safe Storage"), and
 // the ciphertext is kept in secrets.bin. Secrets are never sent to the renderer;
 // the UI only learns whether a key is set.
 const fsp = require('fs/promises');

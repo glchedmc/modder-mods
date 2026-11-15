@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { Readable } = require('stream');
 const { pipeline } = require('stream/promises');
 
-const USER_AGENT = 'glchedmc/glass-launcher/0.1.1 (github.com/glchedmc/modder-mods)';
+const USER_AGENT = 'glchedmc/saturn-client/0.1.3 (github.com/glchedmc/modder-mods)';
 
 let fetchImpl = (...a) => globalThis.fetch(...a);
 /** Tests can swap the fetch implementation. */

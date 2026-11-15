@@ -1,5 +1,5 @@
 'use strict';
-// The Glass Companion Fabric mod: feature catalog, config file, and install
+// The Saturn Client Companion Fabric mod (mod id glass-companion, kept for compatibility): feature catalog, config file, and install
 // into instances. The launcher and the in-game menu share config/glass-companion.json.
 const fsp = require('fs/promises');
 const path = require('path');
@@ -61,7 +61,7 @@ async function install(instanceDir, instance, jarPath, config) {
   await writeConfig(instanceDir, existing ? { ...config, ...existing } : config);
   return {
     source: 'companion', projectId: MOD_ID, file: path.basename(jarPath), folder: 'mods',
-    title: 'Glass Companion', enabled: true, gameVersion: instance.mcVersion,
+    title: 'Saturn Client Companion', enabled: true, gameVersion: instance.mcVersion,
   };
 }
 
