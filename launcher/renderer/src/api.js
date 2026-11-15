@@ -29,7 +29,7 @@ const MOCK_PROVIDERS = [
 ];
 const mock = {
   settings: {
-    defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false,
+    defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false, showOldVersions: false, performancePack: true,
     theme: 'dark', accent: '#7aa8ff', glassStrength: 0.75, reduceTransparency: false, hostProvider: 'p2p', hostDdnsName: '', reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7', sidebarCollapsed: false, sidebarMode: 'icons', appIcon: 'saturn', micPrompted: true, skinAiProvider: 'grok', skinAiGrokModel: 'grok-imagine-image-2.0', skinAiOpenaiModel: 'gpt-image-1',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
   },
@@ -135,7 +135,7 @@ const mockApi = {
   setSettings: async (patch) => (mock.settings = { ...mock.settings, ...patch }),
   secretStatus: async () => mock.secrets,
   setSecret: async (name, value) => { mock.secrets[name] = Boolean(value); return mock.secrets; },
-  listVersions: async () => ['26.3', '26.2', '26.1.2', '26.1.1', '1.21.11', '1.21.10', '1.21.8', '1.21.4', '1.21.1', '1.20.6', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2', '1.8.9'].map((id) => ({ id, type: 'release' })),
+  listVersions: async (o = {}) => [...((o.snapshots ? ['26.4-snapshot-8', '26.4-snapshot-7'] : []).map((id) => ({ id, type: 'snapshot' }))), ...['26.3', '26.2', '26.1.2', '26.1.1', '1.21.11', '1.21.10', '1.21.8', '1.21.4', '1.21.1', '1.20.6', '1.20.1', '1.19.4', '1.18.2', '1.16.5', '1.12.2', '1.8.9'].map((id) => ({ id, type: 'release' })), ...(o.old ? [{ id: 'b1.7.3', type: 'old_beta' }, { id: 'a1.2.6', type: 'old_alpha' }] : [])],
   loaderVersions: async (loader) => ({ fabric: [{ version: '0.20.1', stable: true }], quilt: [{ version: '0.20.0-beta.9', stable: false }], forge: [{ version: '66.1.8', stable: true }], neoforge: [{ version: '26.3.0.103', stable: true }], paper: [{ version: '249', stable: true }], purpur: [{ version: '2658', stable: true }] }[loader] || []),
   listInstances: async () => mock.instances,
   createInstance: async (p) => { const inst = { ...p, id: p.name.toLowerCase().replace(/\W+/g, '-'), type: ['paper', 'purpur'].includes(p.loader) ? 'server' : 'client', mods: [], accent: '#7aa8ff', lastPlayed: null, playTimeSec: 0, createdAt: new Date().toISOString() }; mock.instances.unshift(inst); return inst; },
@@ -161,6 +161,10 @@ const mockApi = {
   startSignIn: async () => ({ userCode: 'GLASS-7Q4K', verificationUri: 'https://www.microsoft.com/link', needsClientId: !mock.settings.msaClientId }),
   signOut: async () => { mock.accounts = []; },
   getCompanion: async () => mock.settings.companion,
+  loadersFor: async (mc) => ({ vanilla: true, forge: !/snapshot|pre|rc|^[ab]1/.test(mc), neoforge: !/snapshot|pre|rc|^[ab]1/.test(mc), fabric: !/^[ab]1/.test(mc), quilt: !/^[ab]1/.test(mc) }),
+  perfPackInfo: async () => ({ global: mock.settings.performancePack !== false, instance: null, supported: true, on: mock.settings.performancePack !== false, mods: [['sodium', 'Sodium', '0.9.2'], ['lithium', 'Lithium', '0.26.3'], ['ferrite-core', 'FerriteCore', '9.0.0'], ['immediatelyfast', 'ImmediatelyFast', '1.17.1'], ['entityculling', 'Entity Culling', '1.12.1'], ['sodium-extra', 'Sodium Extra', '0.9.5']].map(([projectId, title, version]) => ({ projectId, title, version, installed: true, enabled: mock.settings.performancePack !== false })) }),
+  setPerfPack: async (_id, v) => { mock.settings.performancePack = v; return mockApi.perfPackInfo(); },
+  builtinModules: async () => ({ supported: true, enabled: true, standalone: [] }),
   setCompanion: async (_id, cfg) => (mock.settings.companion = cfg),
   listSchematics: async () => mock.schematics,
   addSchematics: async (_id, paths) => { (paths || []).forEach((p) => mock.schematics.files.unshift({ name: p.split('/').pop(), rel: 'schematics/' + p.split('/').pop(), folder: 'schematics', size: 2048, mtime: new Date().toISOString(), ext: (p.split('.').pop() || 'litematic') })); return { added: paths, ...mock.schematics }; },

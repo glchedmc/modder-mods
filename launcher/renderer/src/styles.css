@@ -714,3 +714,7 @@ body.glass-solid .stage-glow { opacity: 0.4; }
 .member-opt.on { background: rgba(var(--accent-rgb), 0.18); border-color: rgba(var(--accent-rgb), 0.45); }
 .member-opt input { accent-color: rgb(var(--accent-rgb)); }
 .relay-status { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.loader-tile.off { opacity: 0.35; filter: grayscale(0.7); }
+.loader-tile.off:hover { transform: none; background: rgba(255,255,255,0.06); }
+.lunar-tag { display: inline-block; margin-left: 7px; padding: 1px 7px; border-radius: 999px; font-style: normal; font-size: 10px; font-weight: 600; vertical-align: 1px; background: rgba(150, 120, 255, 0.2); color: #d9ccff; border: 1px solid rgba(150, 120, 255, 0.32); }
+:root[data-theme='light'] .lunar-tag { color: #4b2fc0; }
