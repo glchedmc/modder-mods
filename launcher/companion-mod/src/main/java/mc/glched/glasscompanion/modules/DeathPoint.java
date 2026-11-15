@@ -2,6 +2,7 @@ package mc.glched.glasscompanion.modules;
 
 import java.util.Locale;
 
+import mc.glched.glasscompanion.waypoints.Waypoints;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -31,6 +32,7 @@ public final class DeathPoint {
 		if (dead && !wasDead) {
 			point = p.blockPosition();
 			dimension = mc.level.dimension();
+			Waypoints.addDeath(mc, point, dimension.identifier().toString());
 		}
 		wasDead = dead;
 		if (!dead && point != null && mc.level.dimension().equals(dimension) && p.blockPosition().distSqr(point) < 16) {

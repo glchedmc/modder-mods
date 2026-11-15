@@ -57,6 +57,7 @@ public final class CompanionMenuScreen extends Screen {
 					}));
 			y += 23;
 		}
+		addRenderableWidget(new GlassButton(px2 - 264, py1 + 9, 88, 20, "Waypoints", GlassButton.Style.PLAIN, b -> minecraft.gui.setScreen(new mc.glched.glasscompanion.waypoints.WaypointListScreen(this))));
 		addRenderableWidget(new GlassButton(px2 - 172, py1 + 9, 84, 20, "Edit HUD", GlassButton.Style.PLAIN, b -> minecraft.gui.setScreen(new HudEditorScreen(this))));
 		addRenderableWidget(new GlassButton(px2 - 84, py1 + 9, 74, 20, "Done", GlassButton.Style.PRIMARY, b -> onClose()));
 	}
