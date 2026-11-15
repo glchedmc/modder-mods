@@ -11,7 +11,8 @@ const STATES = {
 };
 
 function describe(status, platform = process.platform) {
-  if (platform !== 'darwin') return { status: 'granted', ...STATES.granted, hint: 'No permission needed on this OS.', platform };
+  if (platform === 'linux') return { status: 'granted', ...STATES.granted, label: 'No prompt needed', hint: 'Linux does not ask apps for the mic. Pick your input in Sound settings (PipeWire/PulseAudio).', platform, canPrompt: false, soundSettings: true };
+  if (platform !== 'darwin') return { status: 'granted', ...STATES.granted, hint: 'No permission needed on this OS.', platform, canPrompt: false };
   const s = STATES[status] ? status : 'unknown';
   return { status: s, ...STATES[s], platform, canPrompt: s === 'not-determined' };
 }

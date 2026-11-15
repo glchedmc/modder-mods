@@ -94,4 +94,30 @@ async function ensureJava(dirs, major, platform, opts = {}) {
   return installJava(dirs, major, platform, opts);
 }
 
-module.exports = { findJava, installJava, ensureJava, javaBinIn, javaMajor, adoptiumOs, adoptiumArch };
+/**
+ * Folders where this OS keeps installed JDKs, one per runtime, so findJava can
+ * check each one's version (Linux: /usr/lib/jvm/*, macOS: JavaVirtualMachines).
+ */
+async function systemJavaDirs(platform, { roots } = {}) {
+  const os = require('os');
+  const bases = roots || (platform.name === 'osx'
+    ? ['/Library/Java/JavaVirtualMachines', path.join(os.homedir(), 'Library/Java/JavaVirtualMachines')]
+    : platform.name === 'linux'
+      ? ['/usr/lib/jvm', '/usr/lib64/jvm', '/usr/java', '/opt', path.join(os.homedir(), '.jdks'), path.join(os.homedir(), '.sdkman/candidates/java')]
+      : []);
+  const out = [];
+  for (const b of bases) {
+    let entries = [];
+    try { entries = await fsp.readdir(b, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!(e.isDirectory() || e.isSymbolicLink()) || e.name === 'current' || e.name.startsWith('.')) continue;
+      if (b === '/opt' && !/jdk|jre|java|temurin|zulu|corretto/i.test(e.name)) continue; // /opt holds other apps too
+      out.push(path.join(b, e.name));
+    }
+  }
+  out.sort().reverse();
+  if (!roots && process.env.JAVA_HOME) out.unshift(process.env.JAVA_HOME);
+  return out;
+}
+
+module.exports = { systemJavaDirs, findJava, installJava, ensureJava, javaBinIn, javaMajor, adoptiumOs, adoptiumArch };

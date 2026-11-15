@@ -19,6 +19,7 @@ const LOADERS = {
   neoforge: { label: 'NeoForge', kind: 'client' },
   paper: { label: 'Paper', kind: 'server' },
   purpur: { label: 'Purpur', kind: 'server' },
+  'fabric-server': { label: 'Fabric Server', kind: 'server' },
 };
 
 // ---------- Fabric / Quilt (meta servers serve ready-made launcher profiles) ----------
@@ -120,6 +121,16 @@ async function installServer(loader, serverDir, mc, build) {
     if (!builds.length) throw new Error(`Paper has no builds for ${mc} yet`);
     const pick = (build && builds.find((b) => b.version === String(build))) || builds.find((b) => b.stable) || builds[0];
     url = pick.url; build = pick.version;
+  } else if (loader === 'fabric-server') {
+    // Fabric's meta server builds a single runnable launcher jar for the server.
+    if (!build) {
+      const versions = await listMetaLoaderVersions('fabric', mc);
+      if (!versions.length) throw new Error(`Fabric has no loader for Minecraft ${mc} yet`);
+      build = (versions.find((v) => v.stable) || versions[0]).version;
+    }
+    const installers = await fetchJson(`${META.fabric}/versions/installer`);
+    const inst = (installers.find((i) => i.stable) || installers[0]).version;
+    url = fabricServerJarUrl(mc, build, inst);
   } else if (loader === 'purpur') {
     if (!build) { const b = await listPurpurBuilds(mc); if (!b.length) throw new Error(`Purpur has no builds for ${mc}`); build = b[0].version; }
     url = `https://api.purpurmc.org/v2/purpur/${encodeURIComponent(mc)}/${build}/download`;
@@ -133,10 +144,15 @@ async function installServer(loader, serverDir, mc, build) {
   return { build, jar };
 }
 
+function fabricServerJarUrl(mc, loaderVersion, installerVersion) {
+  return `${META.fabric}/versions/loader/${encodeURIComponent(mc)}/${encodeURIComponent(loaderVersion)}/${encodeURIComponent(installerVersion)}/server/jar`;
+}
+
 async function listLoaderVersions(loader, mc) {
   switch (loader) {
     case 'vanilla': return [];
     case 'fabric': case 'quilt': return listMetaLoaderVersions(loader, mc);
+    case 'fabric-server': return listMetaLoaderVersions('fabric', mc);
     case 'forge': return listForgeVersions(mc);
     case 'neoforge': return listNeoForgeVersions(mc);
     case 'paper': return listPaperBuilds(mc);
@@ -156,5 +172,5 @@ async function installClientLoader(loader, dirs, mc, loaderVersion, opts = {}) {
 }
 
 module.exports = {
-  LOADERS, listLoaderVersions, installClientLoader, installServer, neoforgePrefix, installerUrl,
+  LOADERS, fabricServerJarUrl, listLoaderVersions, installClientLoader, installServer, neoforgePrefix, installerUrl,
 };
