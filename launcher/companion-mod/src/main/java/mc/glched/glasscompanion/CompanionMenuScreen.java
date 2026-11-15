@@ -22,7 +22,7 @@ public final class CompanionMenuScreen extends Screen {
 	private int page = 0;
 
 	public CompanionMenuScreen(Screen parent) {
-		super(Component.literal("Glass Companion"));
+		super(Component.literal("Saturn Client Companion"));
 		this.parent = parent;
 	}
 

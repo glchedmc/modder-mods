@@ -23,7 +23,7 @@ import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * Settings shared with Glass Launcher through config/glass-companion.json. The
+ * Settings shared with Saturn Client through config/glass-companion.json. The
  * feature catalog (labels, groups, ranges) is bundled from the launcher so the
  * in-game menu and the launcher's settings page always list the same toggles.
  */

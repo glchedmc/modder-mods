@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "glass-companion",
 	"version": "${version}",
-	"name": "Glass Companion",
-	"description": "Quality-of-life HUD and visual tweaks bundled with Glass Launcher.",
+	"name": "Saturn Client Companion",
+	"description": "Quality-of-life HUD and visual tweaks bundled with Saturn Client. Also renders Saturn cosmetics for you.",
 	"authors": [
 		"glchedmc"
 	],
