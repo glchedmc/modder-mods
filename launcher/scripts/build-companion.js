@@ -9,6 +9,10 @@ const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const mod = path.join(root, 'companion-mod');
 fs.copyFileSync(path.join(root, 'core', 'companion-features.json'), path.join(mod, 'src/main/resources/assets/glass-companion/features.json'));
+// The Saturn logo texture is kept in git as base64 text (companion-mod/saturn_logo.png.b64).
+const logo = path.join(mod, 'src/main/resources/assets/glass-companion/textures/gui/saturn_logo.png');
+fs.mkdirSync(path.dirname(logo), { recursive: true });
+fs.writeFileSync(logo, Buffer.from(fs.readFileSync(path.join(mod, 'saturn_logo.png.b64'), 'utf8'), 'base64'));
 
 let gradle = process.env.GRADLE;
 if (!gradle) {

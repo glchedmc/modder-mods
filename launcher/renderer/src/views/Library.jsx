@@ -15,7 +15,26 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
   const [loaderVersion, setLoaderVersion] = useState('');
   const [eula, setEula] = useState(false);
   const server = loader === 'paper' || loader === 'purpur' || loader === 'fabric-server';
-  useEffect(() => { api.listVersions({ snapshots: false }).then(setVersions); }, []);
+  const [avail, setAvail] = useState(null); // { fabric: true, forge: false, ... } for the chosen version
+  const showSnapshots = Boolean(defaults.showSnapshots);
+  const showOld = Boolean(defaults.showOldVersions);
+  useEffect(() => { api.listVersions({ snapshots: showSnapshots, old: showOld }).then(setVersions).catch(() => {}); }, [showSnapshots, showOld]);
+  const mcType = (versions.find((v) => v.id === mc) || {}).type || 'release';
+  useEffect(() => {
+    let live = true;
+    setAvail(null);
+    (api.loadersFor ? api.loadersFor(mc) : Promise.resolve(null)).then((a) => { if (live) setAvail(a); }).catch(() => {});
+    return () => { live = false; };
+  }, [mc]);
+  // Server software only ships for releases; Fabric server follows Fabric.
+  const has = (k) => {
+    if (k === 'vanilla') return true;
+    if (k === 'paper' || k === 'purpur') return mcType === 'release';
+    if (!avail) return true; // still checking
+    if (k === 'fabric-server') return avail.fabric !== false;
+    return avail[k] !== false;
+  };
+  useEffect(() => { if (!has(loader)) setLoader('vanilla'); }, [avail, mcType]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setLoaderVersions([]); setLoaderVersion('');
     if (loader === 'vanilla') return;
@@ -29,7 +48,7 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
       <label className="form-label">Loader</label>
       <div className="loader-grid">
         {Object.entries(LOADER_META).map(([k, m]) => (
-          <div key={k} className={`loader-tile ${loader === k ? 'on' : ''}`} onClick={() => setLoader(k)}>
+          <div key={k} className={`loader-tile ${loader === k ? 'on' : ''} ${has(k) ? '' : 'off'}`} title={has(k) ? m.desc : `No ${m.label} build for ${mc}`} onClick={() => has(k) && setLoader(k)}>
             <div className="lt-icon" style={{ background: m.color }}><Icon name={k === 'paper' || k === 'purpur' || k === 'fabric-server' ? 'server' : 'cube'} size={18} style={{ color: '#fff' }} /></div>
             <b>{m.label}</b><span>{m.desc}</span>
           </div>
@@ -43,7 +62,7 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
         </div>
         <div>
           <label className="form-label">Minecraft version</label>
-          <div className="field"><select value={mc} onChange={(e) => setMc(e.target.value)}>{(versions.length ? versions : [{ id: mc }]).map((v) => <option key={v.id} value={v.id}>{v.id}{v.id === '26.3' ? ' (latest)' : ''}</option>)}</select><Icon name="chevronDown" size={14} /></div>
+          <div className="field"><select value={mc} onChange={(e) => setMc(e.target.value)}>{(versions.length ? versions : [{ id: mc }]).map((v) => <option key={v.id} value={v.id}>{v.id}{v.id === '26.3' ? ' (latest)' : v.type === 'snapshot' ? ' (snapshot)' : v.type === 'old_beta' ? ' (beta)' : v.type === 'old_alpha' ? ' (alpha)' : ''}</option>)}</select><Icon name="chevronDown" size={14} /></div>
         </div>
       </div>
       {loader !== 'vanilla' && (
@@ -106,7 +125,7 @@ export default function Library({ app }) {
           <div><div className="plus"><Icon name="plus" size={22} /></div>New Instance<div className="faint" style={{ fontSize: 12, fontWeight: 500, marginTop: 3 }}>Vanilla, Fabric, Quilt, Forge, NeoForge, Paper, Purpur</div></div>
         </div>
       </div>
-      {creating && <NewInstanceSheet defaults={{ loader: app.settings.defaultLoader, version: app.settings.defaultVersion }} onClose={() => setCreating(false)} onCreate={async (p) => { setCreating(false); await app.createInstance(p); }} />}
+      {creating && <NewInstanceSheet defaults={{ loader: app.settings.defaultLoader, version: app.settings.defaultVersion, showSnapshots: app.settings.showSnapshots, showOldVersions: app.settings.showOldVersions }} onClose={() => setCreating(false)} onCreate={async (p) => { setCreating(false); await app.createInstance(p); }} />}
     </div>
   );
 }

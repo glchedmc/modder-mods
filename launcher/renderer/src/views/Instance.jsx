@@ -73,7 +73,7 @@ export default function Instance({ app }) {
       </div>
 
       <div className="tabs">
-        {[['mods', 'Mods', 'cube'], ['schematics', 'Schematics', 'layers'], ['companion', 'Companion', 'sparkles'], ['settings', 'Game Settings', 'settings'], ['logs', 'Logs', 'terminal']].map(([k, l, ic]) => (
+        {[['mods', 'Mods', 'cube'], ['schematics', 'Schematics', 'layers'], ['companion', 'Built-in mods', 'sparkles'], ['settings', 'Game Settings', 'settings'], ['logs', 'Logs', 'terminal']].map(([k, l, ic]) => (
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={15} />{l}</button>
         ))}
       </div>

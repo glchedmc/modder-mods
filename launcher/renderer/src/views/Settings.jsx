@@ -32,7 +32,7 @@ const SECTIONS = [
   ['general', 'General', 'settings'],
   ['appearance', 'Appearance', 'palette'],
   ['game', 'Java & Memory', 'java'],
-  ['companion', 'Companion Mod', 'sparkles'],
+  ['companion', 'Built-in mods', 'sparkles'],
   ['voice', 'Voice & Mic', 'mic'],
   ['friends', 'Friends', 'peers'],
   ['keys', 'Accounts & Keys', 'key'],
@@ -151,7 +151,8 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Default Minecraft version</b><span>Used for new instances.</span></div><div className="field" style={{ width: 160 }}><select value={s.defaultVersion} onChange={(e) => set({ defaultVersion: e.target.value })}>{['26.3', '26.2', '26.1.2', '1.21.11', '1.21.1', '1.20.1'].map((v) => <option key={v}>{v}</option>)}</select></div></div>
             <div className="setting"><div className="label"><b>Default loader</b></div><Segmented value={s.defaultLoader} onChange={(v) => set({ defaultLoader: v })} options={['vanilla', 'fabric', 'quilt', 'forge', 'neoforge'].map((v) => ({ value: v, label: { vanilla: 'Vanilla', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge', neoforge: 'NeoForge' }[v] }))} /></div>
             <div className="setting"><div className="label"><b>Hide launcher while playing</b><span>Reopens when the game closes.</span></div><Switch on={s.closeOnLaunch} onChange={(v) => set({ closeOnLaunch: v })} /></div>
-            <div className="setting"><div className="label"><b>Show snapshots</b><span>Include snapshot versions in pickers.</span></div><Switch on={s.showSnapshots} onChange={(v) => set({ showSnapshots: v })} /></div>
+            <div className="setting"><div className="label"><b>Show snapshots</b><span>Include snapshot versions in pickers.</span></div><Switch on={s.showSnapshots} onChange={(v) => set({ showSnapshots: v })} label="Show snapshots" /></div>
+            <div className="setting"><div className="label"><b>Old versions</b><span>Include old beta and alpha releases.</span></div><Switch on={s.showOldVersions} onChange={(v) => set({ showOldVersions: v })} label="Old versions" /></div>
           </div>
           <div className="group-title">Mod sources</div>
           <div className="group glass">
