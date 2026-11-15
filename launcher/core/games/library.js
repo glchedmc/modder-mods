@@ -5,6 +5,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 const steam = require('./steam');
+const { classify, SteamMetaCache, pool } = require('./filter');
 const { readJsonSafe, exists } = require('../util');
 
 const STATE_FILE = 'games.json';
@@ -13,17 +14,21 @@ const MAX_ART = 8 * 1024 * 1024;
 
 class GameLibrary {
   /** @param {{dataDir: string, cacheDir: string, fetch?: Function, steamOptions?: object}} opts */
-  constructor({ dataDir, cacheDir, fetch, steamOptions } = {}) {
+  constructor({ dataDir, cacheDir, fetch, steamOptions, metaWaitMs = 6000 } = {}) {
+    this.metaWaitMs = metaWaitMs;
     this.file = path.join(dataDir, STATE_FILE);
     this.artDir = path.join(cacheDir, ART_DIR);
     this.fetch = fetch || ((...a) => globalThis.fetch(...a));
     this.steamOptions = steamOptions || {};
     this.lastSteam = null;
+    this.meta = new SteamMetaCache({ dir: path.join(cacheDir, 'steam-meta'), fetch: this.fetch, timeoutMs: opts_timeout(steamOptions) });
+    this.metaJob = null;
   }
 
   async state() {
     const s = await readJsonSafe(this.file, {});
-    return { favorites: Array.isArray(s.favorites) ? s.favorites.map(String) : [], manual: Array.isArray(s.manual) ? s.manual : [], lastPlayed: s.lastPlayed && typeof s.lastPlayed === 'object' ? s.lastPlayed : {} };
+    const ids = (a) => (Array.isArray(a) ? a.map(String) : []);
+    return { favorites: ids(s.favorites), manual: Array.isArray(s.manual) ? s.manual : [], lastPlayed: s.lastPlayed && typeof s.lastPlayed === 'object' ? s.lastPlayed : {}, allow: ids(s.allow), block: ids(s.block) };
   }
 
   async save(state) {
@@ -33,21 +38,68 @@ class GameLibrary {
     await fsp.rename(tmp, this.file);
   }
 
-  /** Every game: Steam installs plus manual ones, with favorite flags and cached art paths. */
-  async list() {
+  /** Fetches missing Steam store info in the background; resolves when done. */
+  refreshMeta(appids) {
+    if (this.metaJob) return this.metaJob;
+    this.metaJob = pool(appids, 3, (id) => this.meta.get(id)).finally(() => { this.metaJob = null; });
+    return this.metaJob;
+  }
+
+  /**
+   * Every game: Steam installs plus manual ones, with favorite flags, cached art
+   * and the family filter's verdict ({show, reason, source}). With filter on,
+   * hidden games are left out of `games` and counted in `hiddenCount`.
+   */
+  async list({ filter = false } = {}) {
     const st = await this.state();
     let found = { installed: false, roots: [], libraries: [], games: [] };
     try { found = await steam.listGames(this.steamOptions); } catch { /* unreadable Steam folder */ }
     this.lastSteam = found;
     const fav = new Set(st.favorites);
-    const games = [];
+    const all = [];
     for (const g of found.games) {
-      games.push({ ...g, favorite: fav.has(g.id), art: await this.cachedArt(g.appid), lastPlayed: st.lastPlayed[g.id] || g.lastPlayed || null });
+      all.push({ ...g, favorite: fav.has(g.id), art: await this.cachedArt(g.appid), lastPlayed: st.lastPlayed[g.id] || g.lastPlayed || null });
     }
     for (const m of st.manual) {
-      games.push({ id: m.id, source: 'manual', name: m.name, path: m.path, sizeBytes: 0, installed: await exists(m.path), favorite: fav.has(m.id), art: null, lastPlayed: st.lastPlayed[m.id] || null, addedAt: m.addedAt });
+      all.push({ id: m.id, source: 'manual', name: m.name, path: m.path, sizeBytes: 0, installed: await exists(m.path), favorite: fav.has(m.id), art: null, lastPlayed: st.lastPlayed[m.id] || null, addedAt: m.addedAt });
     }
-    return { steamInstalled: found.installed, steamRoots: found.roots, libraries: found.libraries, games };
+
+    // Store info: cached right away; missing ones fetched (bounded wait), the rest keep loading in the background.
+    let metaPending = 0;
+    if (filter) {
+      const metas = new Map();
+      const missing = [];
+      for (const g of all) {
+        if (g.source !== 'steam') continue;
+        const c = await this.meta.cached(g.appid);
+        if (c) metas.set(g.appid, c); else missing.push(g.appid);
+      }
+      if (missing.length) {
+        const job = this.refreshMeta(missing);
+        await Promise.race([job, new Promise((r) => setTimeout(r, this.metaWaitMs))]);
+        for (const id of missing) { const c = await this.meta.cached(id); if (c) metas.set(id, c); else metaPending++; }
+        if (this.meta.now() < this.meta.offlineUntil) metaPending = 0; // store unreachable: show them, don't spin
+      }
+      for (const g of all) g.filter = classify(g, g.source === 'steam' ? metas.get(g.appid) || null : null, st);
+    } else {
+      for (const g of all) g.filter = classify(g, g.source === 'steam' ? await this.meta.cached(g.appid) : null, st);
+    }
+    const games = filter ? all.filter((g) => g.filter.show) : all;
+    const hidden = filter ? all.filter((g) => !g.filter.show).map((g) => ({ id: g.id, name: g.name, reason: g.filter.reason })) : [];
+    return { steamInstalled: found.installed, steamRoots: found.roots, libraries: found.libraries, games, filter: Boolean(filter), hiddenCount: hidden.length, hidden, metaPending, storeOffline: this.meta.now() < this.meta.offlineUntil };
+  }
+
+  /** Explicit per-game choice: 'show' (always), 'hide' (never), or 'auto' (filter decides). */
+  async setVisibility(id, mode) {
+    const st = await this.state();
+    const key = String(id);
+    st.allow = st.allow.filter((x) => x !== key);
+    st.block = st.block.filter((x) => x !== key);
+    if (mode === 'show') st.allow.push(key);
+    else if (mode === 'hide') st.block.push(key);
+    else if (mode !== 'auto') throw new Error('Unknown visibility');
+    await this.save(st);
+    return { allow: st.allow, block: st.block };
   }
 
   async setFavorite(id, on) {
@@ -168,5 +220,7 @@ class GameLibrary {
     return path.join(this.artDir, base);
   }
 }
+
+function opts_timeout(o) { return (o && o.metaTimeoutMs) || 8000; }
 
 module.exports = { GameLibrary };

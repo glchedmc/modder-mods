@@ -823,7 +823,8 @@ class LauncherService {
 
   /** Java runtimes this computer already has (launcher-managed + system). */
   // ---------- Games tab (installed Steam games + manual ones; local files only) ----------
-  listGames() { return this.games.list(); }
+  async listGames() { const s = await this.getSettings(); return this.games.list({ filter: s.gameFilter !== false }); }
+  setGameVisibility(id, mode) { return this.games.setVisibility(id, mode); }
   gameArt(appid) { return this.games.fetchArt(appid); }
   setGameFavorite(id, on) { return this.games.setFavorite(id, on); }
   addManualGame(entry) { return this.games.addManual(entry || {}); }

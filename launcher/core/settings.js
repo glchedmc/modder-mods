@@ -47,6 +47,7 @@ const DEFAULTS = {
   socialDiscoverable: true, // publish a profile so friend codes can be looked up
   socialRelays: [], // empty = built-in list
   socialNotifications: true,
+  gameFilter: true, // Games tab: only driving, sports, casual, family and party games (no violent ones)
 };
 
 function merge(base, over) {
