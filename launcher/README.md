@@ -1,6 +1,6 @@
 # Saturn Client
 
-Saturn Client (formerly Glass Launcher) is a macOS Minecraft Java launcher with a liquid-glass UI, built-in mod browser (Modrinth + CurseForge),
+Saturn Client (formerly Glass Launcher) is a macOS and Linux Minecraft Java launcher with a liquid-glass UI, built-in mod browser (Modrinth + CurseForge),
 a Lunar-style companion mod, and **Grok Studio**: one-click "Upgrade to 26.3" ports of mods that have no 26.3 build.
 
 Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2+26.3 · Loom 1.19.3 · Gradle 9.8.2 · Java 25.
@@ -9,16 +9,32 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.3-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.4-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
 4. If macOS says the app is "damaged", clear the quarantine flag:
    `xattr -dr com.apple.quarantine "/Applications/Saturn Client.app"`
 
+## Installing on Linux (x64)
+
+Three builds, same app:
+
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.4-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.4-x86_64.AppImage && ./SaturnClient-0.1.4-x86_64.AppImage`.
+  If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
+- **tar.gz**: extract anywhere and run `./saturn-client`.
+
+Notes:
+- Keys are encrypted with the desktop keyring (GNOME Keyring / KWallet via libsecret). With no keyring the app falls back to a
+  private `0600` file in `~/.config/Saturn Client` and Settings → Accounts & Keys says so. Install `gnome-keyring` for encrypted storage.
+- Java is downloaded automatically (Adoptium). Settings → Java → Detect also finds system JDKs in `/usr/lib/jvm`, `/opt`, `~/.jdks` and SDKMAN.
+- Linux has no microphone prompt: PipeWire/PulseAudio give apps the mic directly. Settings → Voice & Mic → Sound settings opens your mixer.
+- If panels feel slow on older GPUs or under a VM, turn **Settings → Appearance → Glass strength** down (0 = solid, no blur). Linux defaults to Medium.
+
 ## Keys and accounts (Settings → Accounts & Keys)
 
-All user-entered keys are stored with Electron `safeStorage` (Keychain-backed on macOS). The UI only ever sees "set / not set".
+All user-entered keys are stored with Electron `safeStorage` (Keychain on macOS, libsecret keyring on Linux). The UI only ever sees "set / not set".
 
 | Key | Needed for | Default |
 |---|---|---|
@@ -38,6 +54,37 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.4
+
+- **Linux build** (AppImage, .deb, tar.gz for x64). Same built-in CurseForge key; no new key needed.
+- **Glass strength:** Settings → Appearance → Glass. Slider from Solid (no blur, opaque panels) to Max, quick Solid/Medium/Max
+  buttons, and **Reduce transparency** to force solid panels. Applied live through CSS variables.
+- **Host World, four ways** (pick one at the top of Host World):
+  | Provider | Best for | Voice chat | Setup |
+  |---|---|---|---|
+  | **Direct (free)** (default) | Most friends | Yes, tunneled | Swap two codes, nothing else |
+  | **Tailscale** | Regular group, strict networks | Yes | Both install Tailscale and share a tailnet |
+  | **Own IP / port forward** | A stable address, many players | Yes (forward UDP 24454) | UPnP button or router port forwarding; optional DuckDNS name |
+  | **e4mc quick link** | Quick public link, no setup for friends | No | Installs e4mc |
+  - **Direct (free)** works like Essential: WebRTC (ICE + UDP hole punching through free public STUN servers, no relay).
+    The host clicks **Create invite** and sends the code; the friend clicks **Join a friend**, pastes it, and sends back a reply code;
+    the host pastes the reply. The friend then joins `localhost` in Multiplayer → Direct Connection. The game goes over a reliable
+    data channel per connection and Simple Voice Chat UDP over a second unordered channel. The panel shows the connection type and
+    your NAT type; strict (symmetric) NAT on both ends can't hole-punch, and the app suggests Tailscale or your own IP instead.
+    One invite per friend; keep Saturn open while you play.
+  - **Own IP:** shows your public, local and join address, maps TCP 25565 + UDP 24454 with UPnP (or shows router steps), detects
+    CGNAT, and can keep a DuckDNS name pointed at your IP (token stored in the keyring).
+  - **Tailscale:** detects the CLI/app, shows your MagicDNS name and Tailscale IP to share, with install/sign-in/invite links.
+  - Paper and the new **Fabric server** instance type (vanilla dedicated server + Fabric Loader + Fabric API) work with all providers except e4mc.
+- **Voice chat in one click:** Host World → Voice chat → **Enable voice chat** installs Simple Voice Chat (26.3 build from Modrinth)
+  and writes `voice_host` for the provider: blank for Direct (each friend reaches voice through their tunnel) and LAN,
+  your Tailscale address for Tailscale, your public IP or DNS name for Own IP. Each friend installs Simple Voice Chat in their own
+  instance too (same button). Default push-to-talk is Caps Lock.
+- **Skin editor:** paint on base or outer layer, pencil/eraser/fill/eyedropper, mirror left/right, grid, classic/slim, color
+  picker with palette and recent colors, undo/redo (Ctrl/⌘+Z, Shift+Ctrl/⌘+Z), live 3D preview, PNG import/export, save or save a copy.
+- **Load a player's skin** by username or UUID (Mojang profile + session server), open it in the editor, or save it to your library.
+- Cmd/Ctrl+K opens Discover. On Linux the window uses the system title bar and shows Ctrl shortcuts.
 
 ## What's new in 0.1.3
 
@@ -91,6 +138,8 @@ npm test               # unit tests (node --test)
 npm run build:mod      # builds companion-mod with Gradle 9.8.2 → resources/companion/
 npm run screenshots    # headless UI screenshots (browser mock data)
 npm run dist:mac       # unsigned arm64 + x64 zips in dist/ (run build:mod first so the companion jar is bundled)
+npm run dist:linux     # AppImage + .deb + tar.gz (x64) in dist/
+xvfb-run -a npx electron scripts/p2p-smoke.js --no-sandbox   # real WebRTC tunnel smoke test (TCP + UDP echo)
 node scripts/verify-fabric.js   # real end-to-end: create a Fabric 26.3 instance, download, build the launch command
 ```
 
@@ -110,5 +159,8 @@ Not yet tested or incomplete:
 - Microsoft sign-in is implemented; the built-in Azure app ID is waiting on Mojang approval.
 - In-game companion features have not been tested visually.
 - The per-mod "Update" button only shows a notice. Modpack import is not implemented.
-  ⌘K only opens Discover. CurseForge fingerprint matching is not implemented.
+  CurseForge fingerprint matching is not implemented.
 - Grok ports target Fabric/Quilt only.
+- Direct (free) hosting was tested end to end over loopback (real WebRTC, TCP and UDP echo) but not across two real home
+  networks: the test box blocks outbound UDP. There is no relay, so two strict/symmetric NATs can't connect (use Tailscale or Own IP).
+- UPnP and DuckDNS were tested against a fake router; real router behaviour varies.

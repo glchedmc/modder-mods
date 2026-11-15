@@ -1,9 +1,12 @@
 {
   "name": "saturn-client",
   "productName": "Saturn Client",
-  "version": "0.1.3",
-  "description": "Saturn Client: a liquid-glass Minecraft Java launcher for macOS with built-in mod browsing, skins, cosmetics, world hosting and Grok-powered mod upgrades.",
-  "author": "glchedmc",
+  "version": "0.1.4",
+  "description": "Saturn Client: a liquid-glass Minecraft Java launcher for macOS and Linux with built-in mod browsing, skins and a skin editor, cosmetics, peer-to-peer world hosting with voice chat and Grok-powered mod upgrades.",
+  "author": {
+    "name": "glchedmc",
+    "email": "glchedmc@users.noreply.github.com"
+  },
   "license": "MIT",
   "private": true,
   "main": "electron/main.js",
@@ -16,7 +19,9 @@
     "test": "node --test test/*.test.js",
     "screenshots": "node scripts/screenshots.mjs",
     "dist:mac": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac zip --arm64 --x64 --publish never",
-    "dist:mac:arm64": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac dir --arm64 --publish never"
+    "dist:mac:arm64": "npm run inject && npm run icon && npm run build:renderer && electron-builder --mac dir --arm64 --publish never",
+    "dist:linux": "npm run inject && npm run icon && npm run build:renderer && electron-builder --linux AppImage deb tar.gz --x64 --publish never",
+    "smoke:p2p": "electron scripts/p2p-smoke.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16"
@@ -71,6 +76,60 @@
       },
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "saturn-client",
+      "artifactName": "SaturnClient-${version}-${arch}.${ext}",
+      "icon": "build/icon.png",
+      "category": "Game",
+      "synopsis": "Liquid-glass Minecraft launcher",
+      "maintainer": "glchedmc <glchedmc@users.noreply.github.com>",
+      "desktop": {
+        "entry": {
+          "Name": "Saturn Client",
+          "StartupWMClass": "saturn-client",
+          "Keywords": "minecraft;launcher;mods;"
+        }
+      },
+      "syncDesktopName": true
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ],
+      "recommends": [
+        "gnome-keyring"
+      ]
     }
-  }
+  },
+  "homepage": "https://github.com/glchedmc/modder-mods",
+  "desktopName": "saturn-client.desktop"
 }
