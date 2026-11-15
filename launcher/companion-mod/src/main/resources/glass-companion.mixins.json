@@ -4,6 +4,7 @@
 	"package": "mc.glched.glasscompanion.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"AbstractClientPlayerMixin",
 		"CameraMixin",
 		"GameRendererMixin",
 		"LightmapExtractorMixin",

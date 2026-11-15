@@ -68,6 +68,7 @@ public final class GlassCompanion implements ClientModInitializer {
 		if (++configPollTicks >= 40) {
 			configPollTicks = 0;
 			CompanionConfig.reloadIfChanged();
+			Cosmetics.reloadIfChanged();
 		}
 		Zoom.tick(client);
 		applyVanillaOptions(client);
