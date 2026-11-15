@@ -1,10 +1,40 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { LauncherService } = require('../core/service');
 const backgrounds = require('../core/backgrounds');
 const { exists } = require('../core/util');
+const mic = require('../core/mic');
+const { migrateDataDir } = require('../core/migrate');
+
+app.setName('Saturn Client');
+// Move data from the old "Glass Launcher" folder before anything opens it.
+let migration = { migrated: false };
+try { migration = migrateDataDir(app.getPath('appData'), app.getPath('userData')); } catch (e) { migration = { migrated: false, error: e.message }; }
+
+const DOCK_ICONS = ['saturn', 'wireframe', 'crystal'];
+function applyDockIcon(name) {
+  if (process.platform !== 'darwin' || !app.dock) return false;
+  const file = path.join(resourcesDir(), 'dock', `${DOCK_ICONS.includes(name) ? name : 'saturn'}.png`);
+  const img = nativeImage.createFromPath(file);
+  if (img.isEmpty()) return false;
+  app.dock.setIcon(img);
+  return true;
+}
+
+function micStatus() {
+  const raw = process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('microphone') : 'granted';
+  return mic.describe(raw);
+}
+
+async function askMic() {
+  if (process.platform !== 'darwin') return micStatus();
+  const before = systemPreferences.getMediaAccessStatus('microphone');
+  if (before === 'not-determined') await systemPreferences.askForMediaAccess('microphone');
+  else if (before === 'denied') await shell.openExternal(mic.PRIVACY_URL);
+  return micStatus();
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'glass-bg', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } },
@@ -25,7 +55,7 @@ function createWindow() {
     minWidth: 1040,
     minHeight: 680,
     show: false,
-    title: 'Glass Launcher',
+    title: 'Saturn Client',
     titleBarStyle: mac ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 26, y: 26 },
     vibrancy: mac ? 'under-window' : undefined,
@@ -59,6 +89,11 @@ const METHODS = [
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
   'getCompanion', 'setCompanion',
   'importBackground', 'removeBackgroundFile', 'backgroundUrl',
+  'renameMod', 'resetModName',
+  'listSkins', 'addSkin', 'updateSkin', 'removeSkin', 'selectSkin', 'accountProfile', 'applySkin', 'setAccountCape',
+  'skinAiProviders', 'generateSkinImage',
+  'getCosmetics', 'setCosmetics', 'addCustomCape', 'removeCustomCape',
+  'hostStatus', 'installHostingMod', 'hostWorld',
 ];
 
 app.whenReady().then(async () => {
@@ -90,6 +125,22 @@ app.whenReady().then(async () => {
     }
   });
 
+  ipcMain.handle('api:micStatus', () => ({ ok: true, value: micStatus() }));
+  ipcMain.handle('api:requestMic', async () => ({ ok: true, value: await askMic() }));
+  ipcMain.handle('api:openMicSettings', async () => { if (process.platform === 'darwin') await shell.openExternal(mic.PRIVACY_URL); return { ok: true, value: true }; });
+  ipcMain.handle('api:setAppIcon', async (_e, name) => {
+    await service.setSettings({ appIcon: DOCK_ICONS.includes(name) ? name : 'saturn' });
+    return { ok: true, value: applyDockIcon(name) };
+  });
+  ipcMain.handle('api:pickImageFile', async (_e, title) => {
+    const r = await dialog.showOpenDialog(win, { title: title || 'Choose a PNG', properties: ['openFile'], filters: [{ name: 'PNG images', extensions: ['png'] }] });
+    if (r.canceled) return { ok: true, value: null };
+    const fsp = require('fs/promises');
+    const buf = await fsp.readFile(r.filePaths[0]);
+    if (buf.length > 4 * 1024 * 1024) return { ok: false, error: 'That image is too large.' };
+    return { ok: true, value: { name: path.basename(r.filePaths[0]), dataUrl: `data:image/png;base64,${buf.toString('base64')}` } };
+  });
+  ipcMain.handle('api:migrationInfo', () => ({ ok: true, value: migration }));
   ipcMain.handle('api:openFolder', (_e, id) => shell.openPath(service.instanceDir(id)));
   ipcMain.handle('api:openUrl', (_e, url) => { if (/^https:\/\//.test(url)) shell.openExternal(url); });
   ipcMain.handle('api:pickBackgroundFile', async () => {
@@ -116,7 +167,17 @@ app.whenReady().then(async () => {
     return { ok: true, value: r.canceled ? [] : r.filePaths };
   });
   ipcMain.handle('api:appInfo', () => ({ ok: true, value: { version: app.getVersion(), platform: process.platform, arch: process.arch, dataDir: app.getPath('userData'), electron: process.versions.electron, dark: nativeTheme.shouldUseDarkColors } }));
+  const s = await service.getSettings();
+  applyDockIcon(s.appIcon);
   createWindow();
+  // First launch on macOS: ask for the microphone so voice chat mods (Simple Voice Chat)
+  // work in game; Java runs as our child process and inherits this permission.
+  if (mic.shouldPromptOnLaunch(s, process.platform === 'darwin' ? systemPreferences.getMediaAccessStatus('microphone') : 'granted')) {
+    win.once('ready-to-show', async () => {
+      await service.setSettings({ micPrompted: true });
+      try { await systemPreferences.askForMediaAccess('microphone'); } catch { /* user can retry in Settings */ }
+    });
+  }
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

@@ -9,6 +9,12 @@ const METHODS = [
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
   'getCompanion', 'setCompanion', 'appInfo', 'openFolder', 'openUrl', 'pickSchematicFiles',
   'importBackground', 'removeBackgroundFile', 'backgroundUrl', 'pickBackgroundFile',
+  'renameMod', 'resetModName',
+  'listSkins', 'addSkin', 'updateSkin', 'removeSkin', 'selectSkin', 'accountProfile', 'applySkin', 'setAccountCape',
+  'skinAiProviders', 'generateSkinImage',
+  'getCosmetics', 'setCosmetics', 'addCustomCape', 'removeCustomCape',
+  'hostStatus', 'installHostingMod', 'hostWorld',
+  'micStatus', 'requestMic', 'openMicSettings', 'setAppIcon', 'pickImageFile', 'migrationInfo',
 ];
 
 const api = {};
@@ -20,7 +26,7 @@ for (const m of METHODS) {
   };
 }
 
-const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update'];
+const CHANNELS = ['launch:progress', 'launch:state', 'launch:log', 'grok:job', 'auth:update', 'host:update'];
 contextBridge.exposeInMainWorld('glass', {
   api,
   pathsFromFiles(fileList) {

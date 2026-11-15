@@ -9,11 +9,18 @@ import Discover from './views/Discover';
 import Studio from './views/Studio';
 import Settings from './views/Settings';
 import Schematics from './views/Schematics';
+import Skins from './views/Skins';
+import Cosmetics from './views/Cosmetics';
+import Host from './views/Host';
+import { SaturnMark } from './components/brand';
 
 const NAV = [
   ['home', 'Play', 'home'],
   ['library', 'Library', 'library'],
   ['discover', 'Discover', 'discover'],
+  ['skins', 'Skins', 'shirt'],
+  ['cosmetics', 'Cosmetics', 'crown'],
+  ['host', 'Host World', 'globe'],
   ['schematics', 'Schematics', 'layers'],
   ['studio', 'Grok Studio', 'sparkles'],
   ['settings', 'Settings', 'settings'],
@@ -21,6 +28,7 @@ const NAV = [
 const TITLES = {
   home: ['Play', null], library: ['Library', 'Your instances and servers'], discover: ['Discover', 'Mods, packs and shaders from every platform'],
   schematics: ['Schematics', 'Builds for the selected instance'],
+  skins: ['Skins', 'Your look, in 3D'], cosmetics: ['Cosmetics', 'Capes, hats and wings'], host: ['Host World', 'Play your world with friends'],
   studio: ['Grok Studio', 'Upgrade mods to the latest Minecraft'], settings: ['Settings', null], instance: ['Instance', null],
 };
 
@@ -49,11 +57,12 @@ export default function App() {
   }, []);
   useEffect(() => { const f = () => setNav(parseHash()); window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f); }, []);
 
-  const toast = useCallback((text, kind = 'info') => {
+  const toast = useCallback((text, kind = 'info', action = null) => {
     const id = Math.random();
-    setToasts((t) => [...t, { id, text, kind }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    setToasts((t) => [...t, { id, text, kind, action }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 8000 : 4200);
   }, []);
+  const dismiss = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   const refresh = useCallback(async () => {
     const [s, sec, inst, acc, jobs] = await Promise.all([api.getSettings(), api.secretStatus(), api.listInstances(), api.listAccounts(), api.listJobs()]);
@@ -74,6 +83,7 @@ export default function App() {
       on('launch:state', (p) => { setLaunchState((s) => ({ ...(s || {}), ...p })); if (p.state === 'exited' || p.state === 'error') { setTimeout(() => setLaunchState(null), 400); if (p.error) toast(p.error, 'error'); refresh(); } }),
       on('launch:log', ({ id, line }) => setLogs((l) => ({ ...l, [id]: [...(l[id] || []).slice(-1500), line] }))),
       on('grok:job', (job) => { if (job.state !== 'running') { toast(job.state === 'done' ? `${job.title} upgraded to ${job.to} and installed` : `${job.title}: upgrade ${job.state}`, job.state === 'done' ? 'ok' : 'error'); refresh(); } }),
+      on('host:update', (u) => { if (u.address) toast(`Your world is live at ${u.address}`, 'ok'); }),
       on('auth:update', (u) => { if (u.state === 'done') { toast(`Signed in as ${u.name}`, 'ok'); refresh(); } else if (u.state === 'error') toast(u.error, 'error'); }),
     ];
     return () => offs.forEach((f) => f && f());
@@ -91,6 +101,18 @@ export default function App() {
     document.body.classList.toggle('reduce-motion', settings.reduceMotion);
   }, [settings]);
 
+  // Cmd+\\ (Ctrl+\\ elsewhere) toggles the sidebar.
+  useEffect(() => {
+    const k = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === '\\' || e.code === 'Backslash')) {
+        e.preventDefault();
+        setSettings((cur) => { if (!cur) return cur; const next = { ...cur, sidebarCollapsed: !cur.sidebarCollapsed }; api.setSettings({ sidebarCollapsed: next.sidebarCollapsed }); return next; });
+      }
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, []);
+
   if (!settings) return <Wallpaper settings={null} />;
 
   const app = {
@@ -98,6 +120,7 @@ export default function App() {
     featureCount: features.features.filter((f) => f.type === 'bool').length,
     setSelected: async (id) => { setSettings(await api.setSettings({ selectedInstance: id })); if (route !== 'home' && route !== 'library') go('home'); },
     saveSettings: async (patch) => setSettings(await api.setSettings(patch)),
+    toggleSidebar: () => { const v = !settings.sidebarCollapsed; setSettings({ ...settings, sidebarCollapsed: v }); api.setSettings({ sidebarCollapsed: v }); },
     setSecret: async (name, value) => { setSecrets(await api.setSecret(name, value)); toast(value ? 'Saved to Keychain' : 'Key removed', 'ok'); },
     createInstance: async (p) => { try { const inst = await api.createInstance(p); await api.setSettings({ selectedInstance: inst.id }); await refresh(); toast(`${inst.name} is ready`, 'ok'); go('home'); } catch (e) { toast(e.message, 'error'); } },
     updateInstance: async (id, patch) => { await api.updateInstance(id, patch); refresh(); },
@@ -114,36 +137,40 @@ export default function App() {
   };
 
   const [title, sub] = TITLES[route] || TITLES.home;
-  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings };
+  const views = { home: Home, library: Library, instance: Instance, discover: Discover, schematics: Schematics, studio: Studio, settings: Settings, skins: Skins, cosmetics: Cosmetics, host: Host };
   const View = views[route] || Home;
   const isMac = isElectron && navigator.userAgent.includes('Mac');
+  const collapsed = Boolean(settings.sidebarCollapsed);
+  const iconsOnly = collapsed && settings.sidebarMode !== 'hidden';
+  const hidden = collapsed && settings.sidebarMode === 'hidden';
 
   return (
     <>
       <Wallpaper settings={settings} />
-      <div className={`app ${isMac ? 'mac' : ''}`}>
-        <aside className="sidebar glass">
+      <div className={`app ${isMac ? 'mac' : ''} ${collapsed ? `sb-collapsed sb-${settings.sidebarMode === 'hidden' ? 'hidden' : 'icons'}` : ''}`}>
+        <aside className="sidebar glass" aria-hidden={hidden}>
           <div className="traffic"><i /><i /><i /></div>
-          <div className="brand"><div className="logo" /><div><b>Glass</b><small>Minecraft Launcher</small></div></div>
-          <nav className="nav">
-            {NAV.map(([k, label, icon]) => (
-              <button key={k} className={route === k || (k === 'library' && route === 'instance' && params.tab !== 'schematics') || (k === 'schematics' && route === 'instance' && params.tab === 'schematics') ? 'active' : ''} onClick={() => go(k)}>
-                <Icon name={icon} size={18} />{label}
-                {k === 'studio' && jobsRunning > 0 && <span className="badge">{jobsRunning}</span>}
-              </button>
-            ))}
-          </nav>
-          <div className="nav-label">Instances</div>
-          <nav className="nav">
-            {instances.slice(0, 4).map((i) => (
-              <button key={i.id} className={selected && selected.id === i.id && route === 'home' ? 'active' : ''} onClick={() => app.setSelected(i.id).then(() => go('home'))}>
-                <span style={{ width: 18, height: 18, borderRadius: 6, background: i.accent, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.5)', flex: 'none' }} />
-                <span className="truncate">{i.name}</span>
-              </button>
-            ))}
-          </nav>
-          <div className="spacer" />
-          <div className="account-chip glass flat" onClick={() => go('settings', { section: 'keys' })}>
+          <div className="brand"><SaturnMark size={30} /><div className="brand-text"><b>Saturn</b><small>Client</small></div></div>
+          <div className="sidebar-scroll">
+            <nav className="nav">
+              {NAV.map(([k, label, icon]) => (
+                <button key={k} title={iconsOnly ? label : undefined} className={route === k || (k === 'library' && route === 'instance' && params.tab !== 'schematics') || (k === 'schematics' && route === 'instance' && params.tab === 'schematics') ? 'active' : ''} onClick={() => go(k)}>
+                  <Icon name={icon} size={18} /><span className="nav-text">{label}</span>
+                  {k === 'studio' && jobsRunning > 0 && <span className="badge">{jobsRunning}</span>}
+                </button>
+              ))}
+            </nav>
+            <div className="nav-label">Instances</div>
+            <nav className="nav">
+              {instances.slice(0, 4).map((i) => (
+                <button key={i.id} title={iconsOnly ? i.name : undefined} className={selected && selected.id === i.id && route === 'home' ? 'active' : ''} onClick={() => app.setSelected(i.id).then(() => go('home'))}>
+                  <span className="inst-dot" style={{ background: i.accent }} />
+                  <span className="truncate nav-text">{i.name}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="account-chip glass flat" title={iconsOnly ? (app.account ? app.account.name : 'Not signed in') : undefined} onClick={() => go('settings', { section: 'keys' })}>
             <div className="avatar">{app.account ? app.account.name[0] : <Icon name="user" size={16} />}</div>
             <div className="meta"><b className="truncate">{app.account ? app.account.name : 'Not signed in'}</b><span>{app.account ? 'Microsoft account' : 'Sign in to play online'}</span></div>
           </div>
@@ -151,6 +178,7 @@ export default function App() {
 
         <main className="main">
           <header className="toolbar">
+            <button className="btn ghost icon-btn sidebar-toggle" title={`${collapsed ? 'Show' : 'Hide'} sidebar (⌘\\)`} aria-label="Toggle sidebar" onClick={app.toggleSidebar}><Icon name="sidebar" size={18} /></button>
             <div>
               <h1>{route === 'instance' && selected ? 'Instance' : title}</h1>
               {sub && <div className="sub">{sub}</div>}
@@ -172,7 +200,8 @@ export default function App() {
         {toasts.map((t) => (
           <div key={t.id} className="toast glass strong">
             <Icon name={t.kind === 'ok' ? 'check' : t.kind === 'error' ? 'info' : 'sparkles'} size={18} style={{ color: t.kind === 'ok' ? 'var(--green)' : t.kind === 'error' ? 'var(--red)' : 'var(--accent)', flex: 'none', marginTop: 1 }} />
-            <span style={{ fontWeight: 550 }}>{t.text}</span>
+            <span style={{ fontWeight: 550, flex: 1 }}>{t.text}</span>
+            {t.action && <button className="btn sm" onClick={() => { dismiss(t.id); t.action.run(); }}><Icon name="undo" size={13} />{t.action.label}</button>}
           </div>
         ))}
       </div>
