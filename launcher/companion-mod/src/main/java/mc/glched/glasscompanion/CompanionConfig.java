@@ -164,7 +164,11 @@ public final class CompanionConfig {
 		});
 	}
 
-	/** HUD editor position for an element as screen fractions, or null for the default spot. */
+	/**
+	 * HUD editor placement for an element: {x, y} as screen fractions plus its own
+	 * scale (1 = follow the global HUD scale), or null for the default spot.
+	 * Saved as [x, y] or [x, y, scale] in hudLayout.
+	 */
 	public static float[] layout(String element) {
 		JsonElement e = VALUES.get("hudLayout");
 		if (e == null || !e.isJsonObject() || !e.getAsJsonObject().has(element)) {
@@ -172,21 +176,36 @@ public final class CompanionConfig {
 		}
 		try {
 			JsonArray a = e.getAsJsonObject().getAsJsonArray(element);
-			return new float[] {a.get(0).getAsFloat(), a.get(1).getAsFloat()};
+			float sc = a.size() > 2 ? a.get(2).getAsFloat() : 1f;
+			return new float[] {a.get(0).getAsFloat(), a.get(1).getAsFloat(), sc};
 		} catch (Exception ex) {
 			return null;
 		}
 	}
 
+	/** Per-element scale from the HUD editor (1 when never resized). */
+	public static float elementScale(String element) {
+		float[] l = layout(element);
+		return l == null || l.length < 3 ? 1f : Math.max(MIN_ELEMENT_SCALE, Math.min(MAX_ELEMENT_SCALE, l[2]));
+	}
+
+	public static final float MIN_ELEMENT_SCALE = 0.5f;
+	public static final float MAX_ELEMENT_SCALE = 3f;
+
+	/** Saves position fractions (and an optional scale as the third value); null resets position and scale. */
 	public static void setLayout(String element, float[] xy) {
 		JsonElement e = VALUES.get("hudLayout");
 		JsonObject o = e != null && e.isJsonObject() ? e.getAsJsonObject().deepCopy() : new JsonObject();
 		if (xy == null) {
 			o.remove(element);
 		} else {
+			float sc = xy.length > 2 ? xy[2] : elementScale(element);
 			JsonArray a = new JsonArray();
 			a.add(Math.round(xy[0] * 10000) / 10000.0);
 			a.add(Math.round(xy[1] * 10000) / 10000.0);
+			if (Math.abs(sc - 1f) > 0.001f) {
+				a.add(Math.round(sc * 100) / 100.0);
+			}
 			o.add(element, a);
 		}
 		VALUES.put("hudLayout", o);

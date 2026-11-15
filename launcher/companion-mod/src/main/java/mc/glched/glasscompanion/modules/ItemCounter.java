@@ -7,9 +7,14 @@ import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-/** Lunar's Item Counter: how many of the held item you carry, or arrows when holding a bow. */
+/**
+ * Held item count (Lunar's Item Counter): how many of the held item you carry
+ * across the whole inventory (hold cobblestone → 342), arrows when holding a
+ * bow or crossbow, and durability left for tools, weapons and armor.
+ */
 public final class ItemCounter {
-	public record Count(ItemStack icon, int total) {
+	/** total is -1 when there is nothing to count (a single tool); durability is -1 for undamageable items. */
+	public record Count(ItemStack icon, int total, int durability, int maxDurability) {
 	}
 
 	private ItemCounter() {
@@ -19,11 +24,10 @@ public final class ItemCounter {
 		ItemStack held = player.getMainHandItem();
 		Inventory inv = player.getInventory();
 		if (held.isEmpty()) {
-			return sample ? new Count(new ItemStack(Items.ARROW), 64) : null;
+			return sample ? new Count(new ItemStack(Items.COBBLESTONE), 342, -1, 0) : null;
 		}
 		boolean bow = held.getItem() instanceof BowItem || held.getItem() instanceof CrossbowItem;
 		int total = 0;
-		ItemStack icon = bow ? new ItemStack(Items.ARROW) : held.copyWithCount(1);
 		for (int i = 0; i < inv.getContainerSize(); i++) {
 			ItemStack s = inv.getItem(i);
 			if (s.isEmpty()) {
@@ -33,9 +37,16 @@ public final class ItemCounter {
 				total += s.getCount();
 			}
 		}
-		if (!bow && total <= 1 && !held.isStackable()) {
-			return sample ? new Count(icon, 1) : null;
+		int dur = held.isDamageableItem() ? held.getMaxDamage() - held.getDamageValue() : -1;
+		int max = held.isDamageableItem() ? held.getMaxDamage() : 0;
+		ItemStack icon = bow ? new ItemStack(Items.ARROW) : held.copyWithCount(1);
+		if (bow) {
+			return new Count(icon, total, dur, max);
 		}
-		return new Count(icon, total);
+		// A lone tool has nothing to count; show just its durability.
+		if (!held.isStackable() && total <= 1) {
+			return dur >= 0 ? new Count(icon, -1, dur, max) : null;
+		}
+		return new Count(icon, total, dur, max);
 	}
 }

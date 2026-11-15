@@ -52,7 +52,7 @@ public final class HudRenderer {
 		element("keystrokes", "Keystrokes", 0f, 0.82f);
 		element("blockInfo", "Block info", 0.5f, 0.02f);
 		element("deathPoint", "Death point", 0.5f, 0.16f);
-		element("itemCounter", "Item counter", 0.73f, 1f);
+		element("itemCounter", "Held item", 0.735f, 0.985f);
 	}
 
 	private static void element(String id, String name, float fx, float fy) {
@@ -74,12 +74,8 @@ public final class HudRenderer {
 		if (player == null || mc.getDebugOverlay().showDebugScreen()) {
 			return;
 		}
-		float scale = scale();
-		Matrix3x2fStack pose = g.pose();
-		pose.pushMatrix();
-		pose.scale(scale, scale);
-		int screenW = (int) (g.guiWidth() / scale);
-		int screenH = (int) (g.guiHeight() / scale);
+		float scale = 1f;
+		int screenW = 0, screenH = 0;
 		Font font = mc.font;
 		int color = CompanionConfig.color("hudColor");
 		boolean bg = CompanionConfig.bool("hudBackground");
@@ -144,19 +140,37 @@ public final class HudRenderer {
 		if (CompanionConfig.module("itemCounter")) {
 			ItemCounter.Count count = ItemCounter.current(player, editing);
 			if (count != null) {
-				String n = String.valueOf(count.total());
-				int w = 22 + font.width(n);
-				int h = 18;
-				place(g, "itemCounter", screenW, screenH, w, h, scale, (x, y) -> {
-					if (bg) {
-						panel(g, x, y, x + w, y + h);
-					}
-					g.item(count.icon(), x + 1, y + 1);
-					g.text(font, n, x + 19, y + 5, color, !bg);
-				});
+				// "342" for blocks and other stacks, arrows for bows; tools also get durability left.
+				String n = count.total() >= 0 ? String.valueOf(count.total()) : "";
+				String dur = count.durability() >= 0 && CompanionConfig.bool("itemCounterDurability")
+						? (CompanionConfig.string("armorHudStyle").equals("percent") ? Math.round(100f * count.durability() / count.maxDurability()) + "%" : String.valueOf(count.durability()))
+						: "";
+				int durColor = count.durability() < 0 ? color : count.durability() > count.maxDurability() / 2 ? 0xFF5BE49B : count.durability() > count.maxDurability() / 5 ? 0xFFFFD36B : 0xFFFF6B7D;
+				if (!n.isEmpty() || !dur.isEmpty()) {
+					int tw = Math.max(font.width(n), font.width(dur));
+					boolean two = !n.isEmpty() && !dur.isEmpty();
+					int w = 24 + tw;
+					int h = two ? 2 * font.lineHeight + 6 : 18;
+					place(g, "itemCounter", screenW, screenH, w, h, scale, (x, y) -> {
+						if (bg) {
+							panel(g, x, y, x + w, y + h);
+						}
+						g.item(count.icon(), x + 2, y + (h - 16) / 2);
+						if (two) {
+							g.text(font, n, x + 21, y + 3, color, !bg);
+							g.text(font, dur, x + 21, y + 4 + font.lineHeight, durColor, !bg);
+						} else {
+							g.text(font, n.isEmpty() ? dur : n, x + 21, y + 5, n.isEmpty() ? durColor : color, !bg);
+						}
+						if (count.durability() >= 0) {
+							float frac = count.durability() / (float) count.maxDurability();
+							g.fill(x + 2, y + h - 2, x + 18, y + h - 1, 0xC0101010);
+							g.fill(x + 2, y + h - 2, x + 2 + Math.max(1, Math.round(16 * frac)), y + h - 1, durColor);
+						}
+					});
+				}
 			}
 		}
-		pose.popMatrix();
 	}
 
 	private static List<String[]> infoLines(Minecraft mc, LocalPlayer player) {
@@ -217,28 +231,46 @@ public final class HudRenderer {
 		return lines;
 	}
 
-	/** Positions an element from its saved fractions (or default) and draws it. */
-	private static void place(GuiGraphicsExtractor g, String id, int screenW, int screenH, int w, int h, float scale, BiConsumer<Integer, Integer> draw) {
+	/** Effective scale of one element: global HUD scale times its own editor scale. */
+	public static float scaleOf(String id) {
+		return scale() * CompanionConfig.elementScale(id);
+	}
+
+	/**
+	 * Positions an element from its saved fractions (or default) and draws it at
+	 * its own scale. w and h are the element's unscaled size; the draw callback
+	 * works in unscaled element coordinates.
+	 */
+	private static void place(GuiGraphicsExtractor g, String id, int unusedW, int unusedH, int w, int h, float unusedScale, BiConsumer<Integer, Integer> draw) {
+		float s = scaleOf(id);
+		int screenW = (int) (g.guiWidth() / s);
+		int screenH = (int) (g.guiHeight() / s);
 		float[] f = CompanionConfig.layout(id);
 		if (f == null) {
 			f = DEFAULTS.get(id);
 		}
 		int x = Math.round(2 + f[0] * Math.max(0, screenW - w - 4));
 		int y = Math.round(2 + f[1] * Math.max(0, screenH - h - 4));
+		Matrix3x2fStack pose = g.pose();
+		pose.pushMatrix();
+		pose.scale(s, s);
 		draw.accept(x, y);
-		BOUNDS.put(id, new int[] {Math.round(x * scale), Math.round(y * scale), Math.round(w * scale), Math.round(h * scale)});
+		pose.popMatrix();
+		BOUNDS.put(id, new int[] {Math.round(x * s), Math.round(y * s), Math.round(w * s), Math.round(h * s)});
 	}
 
-	/** Converts a dragged top-left (GUI pixels) into the saved fractions for an element of size w×h. */
-	public static float[] toFractions(int guiX, int guiY, int w, int h, int guiW, int guiH) {
-		float s = scale();
+	/**
+	 * Converts an on-screen top-left (GUI pixels) into saved fractions for an
+	 * element whose on-screen size is w×h at scale s.
+	 */
+	public static float[] toFractions(int guiX, int guiY, int w, int h, int guiW, int guiH, float s) {
 		float sw = guiW / s;
 		float sh = guiH / s;
 		float ew = w / s;
 		float eh = h / s;
 		float fx = (guiX / s - 2) / Math.max(1f, sw - ew - 4);
 		float fy = (guiY / s - 2) / Math.max(1f, sh - eh - 4);
-		return new float[] {Math.max(0, Math.min(1, fx)), Math.max(0, Math.min(1, fy))};
+		return new float[] {Math.max(0, Math.min(1, fx)), Math.max(0, Math.min(1, fy)), s / scale()};
 	}
 
 	/**
