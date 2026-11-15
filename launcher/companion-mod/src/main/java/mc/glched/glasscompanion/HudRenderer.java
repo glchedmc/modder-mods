@@ -3,11 +3,17 @@ package mc.glched.glasscompanion;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 import org.joml.Matrix3x2fStack;
 
+import mc.glched.glasscompanion.modules.BlockInfo;
+import mc.glched.glasscompanion.modules.DeathPoint;
+import mc.glched.glasscompanion.modules.ItemCounter;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -19,128 +25,325 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
-/** Lunar-style info HUD: a column of glass panels in the top-left, armor at the right, keystrokes bottom-left. */
+/**
+ * Lunar-style HUD made of movable elements. Each element measures itself,
+ * is placed from the HUD editor's saved position (or its default spot) and
+ * records its on-screen bounds so the editor can draw handles and drag it.
+ */
 public final class HudRenderer {
 	private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT);
 	private static final EquipmentSlot[] ARMOR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 	private static final String[] DIRS = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
 
+	/** Element id → display name, default position (fractions), in draw order. */
+	public static final Map<String, String> ELEMENTS = new LinkedHashMap<>();
+	private static final Map<String, float[]> DEFAULTS = new LinkedHashMap<>();
+	/** Last frame's on-screen bounds in GUI pixels: x, y, w, h. */
+	public static final Map<String, int[]> BOUNDS = new LinkedHashMap<>();
+	/** True while the HUD editor is open: empty elements show sample content. */
+	public static boolean editing;
+
+	static {
+		element("info", "Info", 0f, 0f);
+		element("armor", "Armor", 1f, 0.5f);
+		element("keystrokes", "Keystrokes", 0f, 0.82f);
+		element("blockInfo", "Block info", 0.5f, 0.02f);
+		element("deathPoint", "Death point", 0.5f, 0.16f);
+		element("itemCounter", "Item counter", 0.73f, 1f);
+	}
+
+	private static void element(String id, String name, float fx, float fy) {
+		ELEMENTS.put(id, name);
+		DEFAULTS.put(id, new float[] {fx, fy});
+	}
+
 	private HudRenderer() {
+	}
+
+	public static float scale() {
+		return (float) Math.max(0.5, Math.min(2.0, CompanionConfig.num("hudScale")));
 	}
 
 	static void extract(GuiGraphicsExtractor g, DeltaTracker delta) {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer player = mc.player;
+		BOUNDS.clear();
 		if (player == null || mc.getDebugOverlay().showDebugScreen()) {
 			return;
 		}
-		float scale = (float) Math.max(0.5, Math.min(2.0, CompanionConfig.num("hudScale")));
+		float scale = scale();
 		Matrix3x2fStack pose = g.pose();
 		pose.pushMatrix();
 		pose.scale(scale, scale);
 		int screenW = (int) (g.guiWidth() / scale);
 		int screenH = (int) (g.guiHeight() / scale);
+		Font font = mc.font;
+		int color = CompanionConfig.color("hudColor");
+		boolean bg = CompanionConfig.bool("hudBackground");
 
-		List<String> lines = new ArrayList<>();
+		// Info column (text lines, then potion effects).
+		List<String[]> lines = infoLines(mc, player);
+		if (!lines.isEmpty()) {
+			int w = 0;
+			for (String[] l : lines) {
+				w = Math.max(w, font.width(l[0]) + 8);
+			}
+			int h = lines.size() * (font.lineHeight + 6) - 2;
+			final int width = w;
+			place(g, "info", screenW, screenH, w, h, scale, (x, y) -> {
+				int yy = y;
+				for (String[] l : lines) {
+					if (bg) {
+						panel(g, x, yy, x + font.width(l[0]) + 8, yy + font.lineHeight + 4);
+					}
+					int c = l.length > 1 ? (int) Long.parseLong(l[1], 16) : color;
+					g.text(font, l[0], x + 4, yy + 2, c, !bg);
+					yy += font.lineHeight + 6;
+				}
+			});
+		}
+
+		if (CompanionConfig.bool("armorHud")) {
+			drawArmor(g, player, font, color, bg, screenW, screenH, scale);
+		}
+
+		if (CompanionConfig.bool("keystrokes")) {
+			place(g, "keystrokes", screenW, screenH, 58, 70, scale, (x, y) -> drawKeystrokes(g, mc, x, y));
+		}
+
+		if (CompanionConfig.module("blockInfo")) {
+			BlockInfo.Card card = BlockInfo.current(mc, editing);
+			if (card != null) {
+				int w = Math.max(font.width(card.name()), Math.max(font.width(card.line2()), font.width(card.line3()))) + 30;
+				int h = 3 * (font.lineHeight + 1) + 6;
+				place(g, "blockInfo", screenW, screenH, w, h, scale, (x, y) -> {
+					glassCard(g, x, y, x + w, y + h);
+					g.item(card.icon(), x + 5, y + (h - 16) / 2);
+					g.text(font, card.name(), x + 25, y + 4, 0xFFFFFFFF, false);
+					g.text(font, card.line2(), x + 25, y + 4 + font.lineHeight + 1, 0xFFB8C4E6, false);
+					g.text(font, card.line3(), x + 25, y + 4 + 2 * (font.lineHeight + 1), card.line3Color(), false);
+				});
+			}
+		}
+
+		if (CompanionConfig.module("deathPoint")) {
+			String label = DeathPoint.label(mc, editing);
+			if (label != null) {
+				int w = font.width(label) + 12;
+				int h = font.lineHeight + 6;
+				place(g, "deathPoint", screenW, screenH, w, h, scale, (x, y) -> {
+					glassCard(g, x, y, x + w, y + h);
+					g.text(font, label, x + 6, y + 3, 0xFFFFB3C0, false);
+				});
+			}
+		}
+
+		if (CompanionConfig.module("itemCounter")) {
+			ItemCounter.Count count = ItemCounter.current(player, editing);
+			if (count != null) {
+				String n = String.valueOf(count.total());
+				int w = 22 + font.width(n);
+				int h = 18;
+				place(g, "itemCounter", screenW, screenH, w, h, scale, (x, y) -> {
+					if (bg) {
+						panel(g, x, y, x + w, y + h);
+					}
+					g.item(count.icon(), x + 1, y + 1);
+					g.text(font, n, x + 19, y + 5, color, !bg);
+				});
+			}
+		}
+		pose.popMatrix();
+	}
+
+	private static List<String[]> infoLines(Minecraft mc, LocalPlayer player) {
+		List<String[]> lines = new ArrayList<>();
 		if (CompanionConfig.bool("fpsHud")) {
-			lines.add(mc.getFps() + " FPS");
+			lines.add(new String[] {mc.getFps() + " FPS"});
 		}
 		if (CompanionConfig.bool("cpsHud")) {
-			lines.add(ClickTracker.left() + " | " + ClickTracker.right() + " CPS");
+			lines.add(new String[] {ClickTracker.left() + " | " + ClickTracker.right() + " CPS"});
 		}
 		if (CompanionConfig.bool("coordinates")) {
 			BlockPos p = player.blockPosition();
-			lines.add(String.format(Locale.ROOT, "XYZ %d %d %d", p.getX(), p.getY(), p.getZ()));
+			lines.add(new String[] {String.format(Locale.ROOT, "XYZ %d %d %d", p.getX(), p.getY(), p.getZ())});
 			float yaw = ((player.getYRot() % 360) + 360) % 360;
-			lines.add("Facing " + DIRS[Math.round(yaw / 45f) & 7] + " (" + player.getDirection().getName() + ")");
+			lines.add(new String[] {"Facing " + DIRS[Math.round(yaw / 45f) & 7] + " (" + player.getDirection().getName() + ")"});
 		}
 		if (CompanionConfig.bool("biomeHud") && mc.level != null) {
 			mc.level.getBiome(player.blockPosition()).unwrapKey()
-					.ifPresent(k -> lines.add("Biome " + prettify(k.identifier().getPath())));
+					.ifPresent(k -> lines.add(new String[] {"Biome " + prettify(k.identifier().getPath())}));
 		}
 		if (CompanionConfig.bool("speedHud")) {
 			Vec3 v = player.getDeltaMovement();
-			lines.add(String.format(Locale.ROOT, "%.2f m/s", Math.sqrt(v.x * v.x + v.z * v.z) * 20.0));
+			lines.add(new String[] {String.format(Locale.ROOT, "%.2f m/s", Math.sqrt(v.x * v.x + v.z * v.z) * 20.0)});
 		}
 		if (CompanionConfig.bool("pingHud") && mc.getConnection() != null) {
 			PlayerInfo info = mc.getConnection().getPlayerInfo(player.getUUID());
 			if (info != null) {
-				lines.add(info.getLatency() + " ms");
+				lines.add(new String[] {info.getLatency() + " ms"});
 			}
 		}
 		if (CompanionConfig.bool("serverHud")) {
 			ServerData server = mc.getCurrentServer();
-			lines.add(server != null ? server.ip : "Singleplayer");
+			lines.add(new String[] {server != null ? server.ip : "Singleplayer"});
 		}
 		if (CompanionConfig.bool("clockHud")) {
-			lines.add(LocalTime.now().format(CLOCK));
+			lines.add(new String[] {LocalTime.now().format(CLOCK)});
 		}
 		if (CompanionConfig.bool("memoryHud")) {
 			Runtime rt = Runtime.getRuntime();
 			long used = (rt.totalMemory() - rt.freeMemory()) / 1048576L;
-			lines.add(used + " / " + rt.maxMemory() / 1048576L + " MB");
+			lines.add(new String[] {used + " / " + rt.maxMemory() / 1048576L + " MB"});
 		}
-
-		Font font = mc.font;
-		int color = CompanionConfig.color("hudColor");
-		boolean bg = CompanionConfig.bool("hudBackground");
-		int y = 4;
-		for (String line : lines) {
-			int w = font.width(line);
-			if (bg) {
-				panel(g, 3, y - 2, 3 + w + 8, y + font.lineHeight + 2);
-			}
-			g.text(font, line, 7, y, color, !bg);
-			y += font.lineHeight + 6;
+		if (CompanionConfig.bool("saturationHud")) {
+			lines.add(new String[] {String.format(Locale.ROOT, "Saturation %.1f", player.getFoodData().getSaturationLevel()), "FFFFD36B"});
 		}
-
+		if (CompanionConfig.bool("dayCounter") && mc.level != null) {
+			lines.add(new String[] {"Day " + (mc.level.getOverworldClockTime() / 24000L + 1)});
+		}
 		if (CompanionConfig.bool("potionHud")) {
 			for (MobEffectInstance effect : player.getActiveEffects()) {
 				String name = effect.getEffect().value().getDisplayName().getString();
 				int amp = effect.getAmplifier();
 				String label = name + (amp > 0 ? " " + (amp + 1) : "") + "  " + (effect.isInfiniteDuration() ? "∞" : formatTicks(effect.getDuration()));
-				int w = font.width(label);
-				if (bg) {
-					panel(g, 3, y - 2, 3 + w + 8, y + font.lineHeight + 2);
-				}
-				g.text(font, label, 7, y, effect.getDuration() < 200 && !effect.isInfiniteDuration() ? 0xFFFF8A8A : color, !bg);
-				y += font.lineHeight + 6;
+				boolean low = effect.getDuration() < 200 && !effect.isInfiniteDuration();
+				lines.add(low ? new String[] {label, "FFFF8A8A"} : new String[] {label});
 			}
 		}
+		return lines;
+	}
 
-		if (CompanionConfig.bool("armorHud")) {
-			int ay = screenH / 2 - 40;
-			int ax = screenW - 22;
-			List<ItemStack> stacks = new ArrayList<>();
-			for (EquipmentSlot slot : ARMOR) {
+	/** Positions an element from its saved fractions (or default) and draws it. */
+	private static void place(GuiGraphicsExtractor g, String id, int screenW, int screenH, int w, int h, float scale, BiConsumer<Integer, Integer> draw) {
+		float[] f = CompanionConfig.layout(id);
+		if (f == null) {
+			f = DEFAULTS.get(id);
+		}
+		int x = Math.round(2 + f[0] * Math.max(0, screenW - w - 4));
+		int y = Math.round(2 + f[1] * Math.max(0, screenH - h - 4));
+		draw.accept(x, y);
+		BOUNDS.put(id, new int[] {Math.round(x * scale), Math.round(y * scale), Math.round(w * scale), Math.round(h * scale)});
+	}
+
+	/** Converts a dragged top-left (GUI pixels) into the saved fractions for an element of size w×h. */
+	public static float[] toFractions(int guiX, int guiY, int w, int h, int guiW, int guiH) {
+		float s = scale();
+		float sw = guiW / s;
+		float sh = guiH / s;
+		float ew = w / s;
+		float eh = h / s;
+		float fx = (guiX / s - 2) / Math.max(1f, sw - ew - 4);
+		float fy = (guiY / s - 2) / Math.max(1f, sh - eh - 4);
+		return new float[] {Math.max(0, Math.min(1, fx)), Math.max(0, Math.min(1, fy))};
+	}
+
+	/**
+	 * Armor status (Lunar's Armor Status): each worn piece plus main hand and
+	 * offhand, with durability as a number, percent or bar that turns gold
+	 * under 50% and red under 20%. Vertical or horizontal; draggable.
+	 */
+	private static void drawArmor(GuiGraphicsExtractor g, LocalPlayer player, Font font, int color, boolean bg, int screenW, int screenH, float scale) {
+		List<ItemStack> stacks = new ArrayList<>();
+		for (EquipmentSlot slot : ARMOR) {
+			if (!player.getItemBySlot(slot).isEmpty()) {
 				stacks.add(player.getItemBySlot(slot));
 			}
+		}
+		if (!player.getMainHandItem().isEmpty()) {
 			stacks.add(player.getMainHandItem());
-			for (ItemStack stack : stacks) {
-				if (stack.isEmpty()) {
-					continue;
-				}
-				String dur = stack.isDamageableItem() ? String.valueOf(stack.getMaxDamage() - stack.getDamageValue()) : (stack.getCount() > 1 ? String.valueOf(stack.getCount()) : "");
-				int tw = font.width(dur);
+		}
+		if (!player.getOffhandItem().isEmpty()) {
+			stacks.add(player.getOffhandItem());
+		}
+		if (stacks.isEmpty() && editing) {
+			ItemStack helm = new ItemStack(Items.DIAMOND_HELMET);
+			helm.setDamageValue(helm.getMaxDamage() * 3 / 4);
+			stacks.add(helm);
+			stacks.add(new ItemStack(Items.DIAMOND_CHESTPLATE));
+			stacks.add(new ItemStack(Items.DIAMOND_SWORD));
+			stacks.add(new ItemStack(Items.TORCH, 48));
+		}
+		if (stacks.isEmpty()) {
+			return;
+		}
+		String style = CompanionConfig.string("armorHudStyle");
+		boolean bar = style.equals("bar");
+		boolean horizontal = CompanionConfig.string("armorHudLayout").equals("horizontal");
+		int tw = 0;
+		for (ItemStack s : stacks) {
+			tw = Math.max(tw, font.width(durText(s, style)));
+		}
+		final int textW = tw;
+		if (horizontal) {
+			int cell = Math.max(20, textW + 4);
+			int w = stacks.size() * cell;
+			int h = bar ? 21 : 18 + font.lineHeight + 1;
+			place(g, "armor", screenW, screenH, w, h, scale, (x, y) -> {
 				if (bg) {
-					panel(g, ax - tw - 6, ay - 1, ax + 18, ay + 17);
+					panel(g, x, y, x + w, y + h);
 				}
-				g.item(stack, ax, ay);
-				if (!dur.isEmpty()) {
-					float frac = stack.isDamageableItem() ? 1f - stack.getDamageValue() / (float) stack.getMaxDamage() : 1f;
-					int c = frac > 0.5f ? color : frac > 0.2f ? 0xFFFFD36B : 0xFFFF6B7D;
-					g.text(font, dur, ax - tw - 2, ay + 5, c, !bg);
+				int cx = x;
+				for (ItemStack stack : stacks) {
+					g.item(stack, cx + (cell - 16) / 2, y + 1);
+					if (bar) {
+						durBar(g, stack, cx + (cell - 16) / 2, y + 18);
+					} else {
+						String dur = durText(stack, style);
+						g.text(font, dur, cx + (cell - font.width(dur)) / 2, y + 18, durColor(stack, color), !bg);
+					}
+					cx += cell;
 				}
-				ay += 19;
-			}
+			});
+		} else {
+			int w = bar ? 22 : textW + 24;
+			int h = stacks.size() * 19 - 1;
+			place(g, "armor", screenW, screenH, w, h, scale, (x, y) -> {
+				int ay = y;
+				for (ItemStack stack : stacks) {
+					if (bg) {
+						panel(g, x, ay, x + w, ay + 18);
+					}
+					g.item(stack, x + w - 18, ay + 1);
+					if (bar) {
+						durBar(g, stack, x + w - 18, ay + 16);
+					} else {
+						String dur = durText(stack, style);
+						g.text(font, dur, x + 3 + textW - font.width(dur), ay + 5, durColor(stack, color), !bg);
+					}
+					ay += 19;
+				}
+			});
 		}
+	}
 
-		if (CompanionConfig.bool("keystrokes")) {
-			drawKeystrokes(g, mc, 6, screenH - 70);
+	private static float durFraction(ItemStack stack) {
+		return stack.isDamageableItem() ? 1f - stack.getDamageValue() / (float) stack.getMaxDamage() : 1f;
+	}
+
+	private static int durColor(ItemStack stack, int normal) {
+		float frac = durFraction(stack);
+		return frac > 0.5f ? normal : frac > 0.2f ? 0xFFFFD36B : 0xFFFF6B7D;
+	}
+
+	private static void durBar(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
+		if (!stack.isDamageableItem()) {
+			return;
 		}
-		pose.popMatrix();
+		float frac = durFraction(stack);
+		g.fill(x, y, x + 16, y + 2, 0xC0101010);
+		g.fill(x, y, x + Math.max(1, Math.round(16 * frac)), y + 2, durColor(stack, 0xFF5BE49B));
+	}
+
+	private static String durText(ItemStack stack, String style) {
+		if (!stack.isDamageableItem()) {
+			return stack.getCount() > 1 ? String.valueOf(stack.getCount()) : "";
+		}
+		int left = stack.getMaxDamage() - stack.getDamageValue();
+		return style.equals("percent") ? Math.round(100f * left / stack.getMaxDamage()) + "%" : String.valueOf(left);
 	}
 
 	private static void drawKeystrokes(GuiGraphicsExtractor g, Minecraft mc, int x, int y) {
@@ -170,9 +373,14 @@ public final class HudRenderer {
 	}
 
 	/** Frosted panel: translucent fill with a soft top highlight. */
-	private static void panel(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2) {
+	static void panel(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2) {
 		g.fill(x1, y1, x2, y2, 0x70141836);
 		g.fill(x1, y1, x2, y1 + 1, 0x40FFFFFF);
+	}
+
+	/** Slightly stronger card used by module readouts (block info, death point). */
+	static void glassCard(GuiGraphicsExtractor g, int x1, int y1, int x2, int y2) {
+		Glass.panel(g, x1, y1, x2, y2, 0.85f);
 	}
 
 	private static String formatTicks(int ticks) {
@@ -180,7 +388,7 @@ public final class HudRenderer {
 		return String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60);
 	}
 
-	private static String prettify(String id) {
+	public static String prettify(String id) {
 		StringBuilder b = new StringBuilder();
 		for (String part : id.split("_")) {
 			if (!part.isEmpty()) {
