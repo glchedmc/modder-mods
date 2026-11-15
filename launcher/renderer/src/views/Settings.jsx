@@ -154,6 +154,10 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Show snapshots</b><span>Include snapshot versions in pickers.</span></div><Switch on={s.showSnapshots} onChange={(v) => set({ showSnapshots: v })} label="Show snapshots" /></div>
             <div className="setting"><div className="label"><b>Old versions</b><span>Include old beta and alpha releases.</span></div><Switch on={s.showOldVersions} onChange={(v) => set({ showOldVersions: v })} label="Old versions" /></div>
           </div>
+          <div className="group-title">Games tab</div>
+          <div className="group glass">
+            <div className="setting"><div className="label"><b>No-violence game filter</b><span>Only show driving, sports, casual, family and party games. Hides shooters, horror, survival and games Steam marks for violence or adult content.</span></div><Switch on={s.gameFilter !== false} onChange={(v) => set({ gameFilter: v })} label="No-violence game filter" /></div>
+          </div>
           <div className="group-title">Mod sources</div>
           <div className="group glass">
             <div className="setting"><div className="label"><b>Modrinth</b><span>Public API, no key needed.</span></div><Switch on={s.modSources.modrinth} onChange={(v) => set({ modSources: { ...s.modSources, modrinth: v } })} /></div>

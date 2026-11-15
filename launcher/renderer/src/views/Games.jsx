@@ -76,8 +76,34 @@ export default function Games({ app }) {
   const [sort, setSort] = useState(() => localStorage.getItem('games.sort') || 'name');
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [showHidden, setShowHidden] = useState(false);
+  const filterOn = app.settings.gameFilter !== false;
   const reload = () => api.listGames().then(setData).catch((e) => { setData({ steamInstalled: false, games: [], error: e.message }); });
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, [filterOn]);
+  // Steam store info still loading for some games: check again shortly.
+  useEffect(() => {
+    if (!data || !data.metaPending) return undefined;
+    const t = setTimeout(reload, 5000);
+    return () => clearTimeout(t);
+  }, [data]);
+  useEffect(() => {
+    if (!menu) return undefined;
+    const close = () => setMenu(null);
+    const key = (e) => e.key === 'Escape' && close();
+    window.addEventListener('click', close); window.addEventListener('blur', close); window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('click', close); window.removeEventListener('blur', close); window.removeEventListener('keydown', key); };
+  }, [menu]);
+  const toggleFilter = () => app.saveSettings({ gameFilter: !filterOn });
+  const setVisibility = async (g, mode) => {
+    setMenu(null);
+    try {
+      await api.setGameVisibility(g.id, mode);
+      app.toast(mode === 'show' ? `${g.name} will always show` : mode === 'hide' ? `Hid ${g.name}` : `${g.name} follows the filter again`, 'ok');
+      reload();
+    } catch (e) { app.toast(e.message, 'error'); }
+  };
+  const openMenu = (e, g) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: Math.min(e.clientX, window.innerWidth - 210), y: Math.min(e.clientY, window.innerHeight - 150), game: g }); };
   useEffect(() => { localStorage.setItem('games.sort', sort); }, [sort]);
   const shown = useMemo(() => (data ? sortGames([...data.games], sort, query) : []), [data, sort, query]);
 
@@ -103,6 +129,11 @@ export default function Games({ app }) {
         <div className="row" style={{ gap: 10 }}>
           <div className="field search"><Icon name="search" size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games" /></div>
           <Segmented value={sort} onChange={setSort} options={[{ value: 'name', label: 'Name' }, { value: 'recent', label: 'Recent', icon: 'clock' }, { value: 'size', label: 'Size', icon: 'memory' }]} />
+          <button className={`filter-chip ${filterOn ? 'on' : ''}`} onClick={toggleFilter}
+            title={filterOn ? 'Only driving, sports, casual, family and party games. Click to show everything.' : 'Showing every game. Click to hide violent games again.'}>
+            <Icon name="shield" size={14} />
+            {filterOn ? <>No-violence filter{data.hiddenCount > 0 && <span className="filter-count">{data.hiddenCount} hidden</span>}<Icon name="x" size={12} /></> : 'Filter off'}
+          </button>
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn ghost icon-btn" title="Rescan" onClick={reload}><Icon name="refresh" size={16} /></button>
@@ -127,7 +158,8 @@ export default function Games({ app }) {
       {shown.length > 0 ? (
         <div className="games-grid stagger">
           {shown.map((g) => (
-            <div key={g.id} className={`glass card hover game-tile ${g.favorite ? 'fav' : ''} ${g.installed === false ? 'missing' : ''}`} onDoubleClick={() => play(g)}>
+            <div key={g.id} className={`glass card hover game-tile ${g.favorite ? 'fav' : ''} ${g.installed === false ? 'missing' : ''} ${g.filter && !g.filter.show ? 'filtered' : ''}`}
+              title={g.filter ? g.filter.reason : undefined} onDoubleClick={() => play(g)} onContextMenu={(e) => openMenu(e, g)}>
               <div className="game-cover"><Art game={g} />
                 <button className={`game-pin ${g.favorite ? 'on' : ''}`} title={g.favorite ? 'Unpin' : 'Pin to top'} onClick={() => fav(g)}><Icon name="pin" size={14} /></button>
               </div>
@@ -135,6 +167,8 @@ export default function Games({ app }) {
                 <h4 className="truncate" title={g.name}>{g.name}</h4>
                 <div className="row faint game-meta" style={{ gap: 6, fontSize: 11.5, marginTop: 3 }}>
                   <span className={`pill ${g.source === 'steam' ? 'blue' : 'violet'}`}>{g.source === 'steam' ? 'Steam' : 'Manual'}</span>
+                  {g.filter && !g.filter.show && <span className="pill red" title={g.filter.reason}>Filtered</span>}
+                  {g.filter && g.filter.source === 'user' && g.source === 'steam' && g.filter.show && <span className="pill green" title={g.filter.reason}>Always</span>}
                   {fmtSize(g.sizeBytes) && <span>{fmtSize(g.sizeBytes)}</span>}
                   {g.lastPlayed && <span className="truncate">· {timeAgo(new Date(g.lastPlayed).toISOString())}</span>}
                 </div>
@@ -149,8 +183,32 @@ export default function Games({ app }) {
           ))}
         </div>
       ) : (data.games.length > 0 && <div className="empty">No games match “{query}”.</div>)}
+      {filterOn && data.hiddenCount > 0 && (
+        <div className="hidden-games">
+          <button className="btn ghost sm" onClick={() => setShowHidden(!showHidden)}><Icon name={showHidden ? 'chevronDown' : 'chevron'} size={14} />{data.hiddenCount} hidden by the filter</button>
+          {showHidden && (
+            <div className="hidden-list glass">
+              {data.hidden.map((h) => (
+                <div key={h.id} className="row between hidden-row">
+                  <span className="truncate"><b>{h.name}</b> <span className="faint">· {h.reason}</span></span>
+                  <button className="btn sm" onClick={() => setVisibility(h, 'show')}>Always show</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {data.storeOffline && filterOn && <div className="faint" style={{ fontSize: 11.5, marginTop: 10 }}>Steam store is unreachable right now, so games without saved store info are shown unfiltered.</div>}
+      {menu && (
+        <div className="context-menu glass strong" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
+          <div className="context-title truncate">{menu.game.name}</div>
+          <button onClick={() => setVisibility(menu.game, 'show')}><Icon name="check" size={14} />Always show</button>
+          <button onClick={() => setVisibility(menu.game, 'hide')}><Icon name="x" size={14} />Hide</button>
+          {menu.game.filter && menu.game.filter.source === 'user' && menu.game.source === 'steam' && <button onClick={() => setVisibility(menu.game, 'auto')}><Icon name="refresh" size={14} />Let the filter decide</button>}
+        </div>
+      )}
       {data.games.length === 0 && data.steamInstalled && <div className="empty">Nothing here yet. Add a game manually to launch it from Saturn.</div>}
-      <div className="faint" style={{ fontSize: 11.5, marginTop: 18 }}>Read from your local Steam folders only. No Steam login or API key. Play hands the game to Steam.</div>
+      <div className="faint" style={{ fontSize: 11.5, marginTop: 18 }}>Read from your local Steam folders only. The filter uses Steam’s public store info (genres, tags, content descriptors). No Steam login or API key. Right-click a game to always show or hide it.</div>
       {adding && <AddGameSheet onClose={() => setAdding(false)} onAdd={add} />}
     </div>
   );

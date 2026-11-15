@@ -29,6 +29,7 @@ const MOCK_PROVIDERS = [
 ];
 const mock = {
   settings: {
+    gameFilter: true,
     defaultVersion: '26.3', defaultLoader: 'fabric', memoryMb: 6144, javaPath: '', closeOnLaunch: false, showSnapshots: false, showOldVersions: false, performancePack: true,
     theme: 'dark', accent: '#7aa8ff', glassStrength: 0.75, reduceTransparency: false, hostProvider: 'p2p', hostDdnsName: '', reduceMotion: false, backgroundId: 'highlands', backgroundSolid: '#1b1e52', customBackground: null, backgroundBlur: 0, backgroundDim: 0.2, backgroundParallax: 0.35, msaClientId: '8e130755-4b0b-4252-bc49-40cfa995f0d3', grokModel: 'grok-4.7', sidebarCollapsed: false, sidebarMode: 'icons', appIcon: 'saturn', micPrompted: true, skinAiProvider: 'grok', skinAiGrokModel: 'grok-imagine-image-2.0', skinAiOpenaiModel: 'gpt-image-1',
     grokReasoning: 'high', grokMaxAttempts: 5, modSources: { modrinth: true, curseforge: true }, companion: companionDefaults, selectedInstance: 'fabric-26-3',
@@ -263,18 +264,30 @@ const mockApi = {
   listGames: async () => {
     if (!mock.games) {
       const d = (n) => now - n * 86400e3;
+      const ok = (reason) => ({ show: true, reason, source: 'allowed' });
+      const no = (reason) => ({ show: false, reason, source: 'blocked' });
       mock.games = [
-        { id: 'steam:1145360', source: 'steam', appid: '1145360', name: 'Hades', sizeBytes: 15.2 * 1024 ** 3, lastPlayed: d(1), favorite: true, installed: true },
-        { id: 'steam:413150', source: 'steam', appid: '413150', name: 'Stardew Valley', sizeBytes: 0.6 * 1024 ** 3, lastPlayed: d(3), favorite: false, installed: true },
-        { id: 'steam:367520', source: 'steam', appid: '367520', name: 'Hollow Knight', sizeBytes: 9.1 * 1024 ** 3, lastPlayed: d(12), favorite: false, installed: true },
-        { id: 'steam:646570', source: 'steam', appid: '646570', name: 'Slay the Spire', sizeBytes: 1.1 * 1024 ** 3, lastPlayed: d(30), favorite: true, installed: true },
-        { id: 'steam:504230', source: 'steam', appid: '504230', name: 'Celeste', sizeBytes: 1.3 * 1024 ** 3, lastPlayed: d(60), favorite: false, installed: true },
-        { id: 'steam:892970', source: 'steam', appid: '892970', name: 'Valheim', sizeBytes: 1.6 * 1024 ** 3, lastPlayed: null, favorite: false, installed: true },
-        { id: 'steam:1794680', source: 'steam', appid: '1794680', name: 'Vampire Survivors', sizeBytes: 0.5 * 1024 ** 3, lastPlayed: d(5), favorite: false, installed: true },
-        { id: 'manual:a1b2c3', source: 'manual', name: 'Prism Launcher', path: '/Applications/Prism Launcher.app', sizeBytes: 0, lastPlayed: d(2), favorite: false, installed: true },
+        { id: 'steam:965680', source: 'steam', appid: '965680', name: 'Boomerang Fu', sizeBytes: 0.4 * 1024 ** 3, lastPlayed: d(1), favorite: true, installed: true, filter: ok('Party Game') },
+        { id: 'steam:244210', source: 'steam', appid: '244210', name: 'Assetto Corsa', sizeBytes: 21 * 1024 ** 3, lastPlayed: d(2), favorite: true, installed: true, filter: ok('Racing') },
+        { id: 'steam:284160', source: 'steam', appid: '284160', name: 'BeamNG.drive', sizeBytes: 38 * 1024 ** 3, lastPlayed: d(4), favorite: false, installed: true, filter: ok('Racing') },
+        { id: 'steam:252950', source: 'steam', appid: '252950', name: 'Rocket League', sizeBytes: 27 * 1024 ** 3, lastPlayed: d(6), favorite: false, installed: true, filter: ok('Sports') },
+        { id: 'steam:413150', source: 'steam', appid: '413150', name: 'Stardew Valley', sizeBytes: 0.6 * 1024 ** 3, lastPlayed: d(9), favorite: false, installed: true, filter: ok('Simulation') },
+        { id: 'steam:728880', source: 'steam', appid: '728880', name: 'Overcooked! 2', sizeBytes: 5.2 * 1024 ** 3, lastPlayed: d(14), favorite: false, installed: true, filter: ok('Local Co-Op') },
+        { id: 'manual:lfs001', source: 'manual', name: 'Live for Speed', path: '/Applications/Live for Speed.app', sizeBytes: 0, lastPlayed: d(3), favorite: false, installed: true, filter: { show: true, reason: 'Added by you', source: 'user' } },
+        { id: 'steam:730', source: 'steam', appid: '730', name: 'Counter-Strike 2', sizeBytes: 33 * 1024 ** 3, lastPlayed: d(20), favorite: false, installed: true, filter: no('Frequent violence or gore') },
+        { id: 'steam:892970', source: 'steam', appid: '892970', name: 'Valheim', sizeBytes: 1.6 * 1024 ** 3, lastPlayed: null, favorite: false, installed: true, filter: no('Tagged Survival') },
+        { id: 'steam:1145360', source: 'steam', appid: '1145360', name: 'Hades', sizeBytes: 15.2 * 1024 ** 3, lastPlayed: d(30), favorite: false, installed: true, filter: { show: false, reason: 'Not a driving, sports, casual or party game', source: 'default' } },
       ];
     }
-    return { steamInstalled: true, steamRoots: ['~/Library/Application Support/Steam'], libraries: [], games: mock.games };
+    const on = mock.settings.gameFilter !== false;
+    const games = on ? mock.games.filter((g) => g.filter.show) : mock.games;
+    const hidden = on ? mock.games.filter((g) => !g.filter.show).map((g) => ({ id: g.id, name: g.name, reason: g.filter.reason })) : [];
+    return { steamInstalled: true, steamRoots: ['~/Library/Application Support/Steam'], libraries: [], games, filter: on, hiddenCount: hidden.length, hidden, metaPending: 0, storeOffline: false };
+  },
+  setGameVisibility: async (id, mode) => {
+    const g = mock.games.find((x) => x.id === id);
+    if (g) g.filter = mode === 'show' ? { show: true, reason: 'Always shown (your pick)', source: 'user' } : mode === 'hide' ? { show: false, reason: 'Hidden by you', source: 'user' } : g.filter;
+    return true;
   },
   gameArt: async (appid) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appid}/library_600x900.jpg`,
   setGameFavorite: async (id, on) => { const g = (mock.games || []).find((x) => x.id === id); if (g) g.favorite = on; return true; },

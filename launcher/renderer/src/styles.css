@@ -742,3 +742,17 @@ body.glass-solid .stage-glow { opacity: 0.4; }
 .games-empty > div:nth-child(2) { flex: 1; }
 .games-empty-icon { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: rgba(var(--accent-rgb), 0.2); color: #fff; flex: none; }
 .game-meta { flex-wrap: nowrap; min-width: 0; overflow: hidden; } .game-meta > span { white-space: nowrap; flex: none; } .game-meta > span.truncate { flex: 1 1 auto; min-width: 0; }
+
+.filter-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 99px; font-size: 12.5px; font-weight: 650; cursor: pointer; color: var(--text-2);
+  background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); transition: background 0.2s, color 0.2s; }
+.filter-chip.on { color: #fff; background: rgba(var(--accent-rgb), 0.32); border-color: rgba(var(--accent-rgb), 0.55); }
+.filter-chip:hover { background: rgba(var(--accent-rgb), 0.22); }
+.filter-count { padding: 1px 7px; border-radius: 99px; background: rgba(0,0,0,0.22); font-size: 11px; }
+.game-tile.filtered { opacity: 0.6; }
+.hidden-games { margin-top: 16px; }
+.hidden-list { margin-top: 8px; border-radius: 14px; padding: 6px; }
+.hidden-row { padding: 6px 8px; gap: 10px; font-size: 12.5px; }
+.context-menu { position: fixed; z-index: 1000; min-width: 190px; padding: 6px; border-radius: 12px; display: flex; flex-direction: column; }
+.context-menu button { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 0; background: transparent; color: var(--text); border-radius: 8px; font-size: 13px; text-align: left; cursor: pointer; }
+.context-menu button:hover { background: rgba(var(--accent-rgb), 0.3); }
+.context-title { font-size: 11.5px; color: var(--text-3); padding: 4px 10px 6px; font-weight: 650; }
