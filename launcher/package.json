@@ -1,7 +1,7 @@
 {
   "name": "saturn-client",
   "productName": "Saturn Client",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Saturn Client: a liquid-glass Minecraft Java launcher for macOS and Linux with built-in mod browsing, friends and encrypted chat, one-click peer-to-peer world joins with voice chat, skins and a skin editor, cosmetics and Grok-powered mod upgrades.",
   "author": {
     "name": "glchedmc",

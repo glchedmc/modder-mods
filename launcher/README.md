@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.6-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.7-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.6-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.6-x86_64.AppImage && ./SaturnClient-0.1.6-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.7-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.7-x86_64.AppImage && ./SaturnClient-0.1.7-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,23 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.7: waypoints, resizable HUD, held item count, space title screen
+
+- **Waypoints** (Lunar's Waypoints): **B** opens "New waypoint" at your feet (name, X/Y/Z, color); **J** opens the waypoint list
+  to rename, recolor, hide/show, edit or delete. Waypoints are saved per world (singleplayer save) or server address, and per
+  dimension, in `config/glass-companion-waypoints.json`. Each one gets a colored beacon beam (drawn at the edge of render distance
+  when it is farther away) and a glass name + distance tag. Every death adds a red death waypoint (newest 5 kept).
+  With the **Corner Atlas** mod installed, waypoints show as colored diamonds on its minimap (clamped to the rim when off-map).
+  Toggles: Right Shift → Waypoints, or the launcher's Built-in mods page. Steps aside for Xaero's, JourneyMap and VoxelMap.
+- **HUD editor resizing**: every element has corner handles; drag one to scale around the opposite corner, or scroll over an
+  element to scale it (50–300%, snaps to 100%). Scale is saved per element (`hudLayout: {id: [x, y, scale]}`); right-click still
+  resets position and size.
+- **Held item count** (on by default): the total of the held item across your whole inventory (hold cobblestone → 342), arrows
+  for a bow or crossbow, plus durability left on tools (green / gold / red, with a bar). Draggable and resizable.
+- **Title screen**: Saturn's own space panorama (Saturn with rings, a moon, nebula and stars), shipped as the built-in
+  "Saturn panorama" resource pack (on by default; turn it off in Resource Packs to get vanilla's back). The ring logo now sits on
+  transparency, left of a giant **SATURN** title; buttons, glass panels and captions are a little brighter.
 
 ## What's new in 0.1.6: built-in mods (Lunar-style)
 
