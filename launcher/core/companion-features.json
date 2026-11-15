@@ -1,53 +1,620 @@
 {
   "groups": [
-    { "id": "hud", "label": "HUD", "icon": "gauge" },
-    { "id": "visual", "label": "Visuals", "icon": "sparkles" },
-    { "id": "crosshair", "label": "Crosshair", "icon": "target" },
-    { "id": "tooltips", "label": "Tooltips", "icon": "text" },
-    { "id": "movement", "label": "Movement", "icon": "run" },
-    { "id": "performance", "label": "Performance", "icon": "bolt" }
+    {
+      "id": "hud",
+      "label": "HUD",
+      "icon": "gauge"
+    },
+    {
+      "id": "visual",
+      "label": "Visuals",
+      "icon": "sparkles"
+    },
+    {
+      "id": "crosshair",
+      "label": "Crosshair",
+      "icon": "target"
+    },
+    {
+      "id": "tooltips",
+      "label": "Tooltips",
+      "icon": "text"
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory",
+      "icon": "box"
+    },
+    {
+      "id": "menus",
+      "label": "Menus",
+      "icon": "layers"
+    },
+    {
+      "id": "movement",
+      "label": "Movement",
+      "icon": "run"
+    },
+    {
+      "id": "performance",
+      "label": "Performance",
+      "icon": "bolt"
+    }
   ],
   "features": [
-    { "key": "fpsHud", "group": "hud", "label": "FPS counter", "type": "bool", "default": true, "hint": "Frames per second in the corner." },
-    { "key": "cpsHud", "group": "hud", "label": "CPS counter", "type": "bool", "default": false, "hint": "Left and right clicks per second." },
-    { "key": "keystrokes", "group": "hud", "label": "Keystrokes", "type": "bool", "default": false, "hint": "WASD, Space and mouse buttons light up as you press them." },
-    { "key": "coordinates", "group": "hud", "label": "Coordinates", "type": "bool", "default": true, "hint": "XYZ with facing direction." },
-    { "key": "biomeHud", "group": "hud", "label": "Biome", "type": "bool", "default": false, "hint": "The biome you are standing in." },
-    { "key": "armorHud", "group": "hud", "label": "Armor status", "type": "bool", "default": true, "hint": "Armor and held item with durability." },
-    { "key": "potionHud", "group": "hud", "label": "Potion effects", "type": "bool", "default": true, "hint": "Active effects with time left." },
-    { "key": "pingHud", "group": "hud", "label": "Ping", "type": "bool", "default": false, "hint": "Latency to the server." },
-    { "key": "speedHud", "group": "hud", "label": "Speed", "type": "bool", "default": false, "hint": "Horizontal speed in blocks per second." },
-    { "key": "clockHud", "group": "hud", "label": "Clock", "type": "bool", "default": false, "hint": "Real-world time." },
-    { "key": "memoryHud", "group": "hud", "label": "Memory", "type": "bool", "default": false, "hint": "Java heap in use." },
-    { "key": "serverHud", "group": "hud", "label": "Server address", "type": "bool", "default": false, "hint": "The server you are connected to." },
-    { "key": "hudScale", "group": "hud", "label": "HUD scale", "type": "number", "min": 0.5, "max": 2, "step": 0.1, "default": 1 },
-    { "key": "hudBackground", "group": "hud", "label": "Glass backgrounds", "type": "bool", "default": true, "hint": "Translucent panels behind HUD text." },
-    { "key": "hudColor", "group": "hud", "label": "HUD text color", "type": "color", "default": "#FFFFFF" },
-
-    { "key": "zoom", "group": "visual", "label": "Zoom", "type": "bool", "default": true, "hint": "Hold C to zoom. Scroll while zooming to adjust." },
-    { "key": "zoomFactor", "group": "visual", "label": "Zoom strength", "type": "number", "min": 2, "max": 10, "step": 0.5, "default": 4 },
-    { "key": "smoothZoom", "group": "visual", "label": "Smooth zoom", "type": "bool", "default": true },
-    { "key": "fullbright", "group": "visual", "label": "Fullbright", "type": "bool", "default": false, "hint": "See in the dark without night vision." },
-    { "key": "noHurtCam", "group": "visual", "label": "No hurt camera shake", "type": "bool", "default": false },
-    { "key": "noViewBobbing", "group": "visual", "label": "No view bobbing", "type": "bool", "default": false },
-    { "key": "hideFireOverlay", "group": "visual", "label": "Hide fire overlay", "type": "bool", "default": false, "hint": "Removes the flames covering your screen while burning." },
-    { "key": "hideScoreboard", "group": "visual", "label": "Hide scoreboard", "type": "bool", "default": false },
-
-    { "key": "customCrosshair", "group": "crosshair", "label": "Custom crosshair", "type": "bool", "default": false },
-    { "key": "crosshairColor", "group": "crosshair", "label": "Color", "type": "color", "default": "#FFFFFF" },
-    { "key": "crosshairSize", "group": "crosshair", "label": "Arm length", "type": "number", "min": 1, "max": 12, "step": 1, "default": 5 },
-    { "key": "crosshairGap", "group": "crosshair", "label": "Gap", "type": "number", "min": 0, "max": 8, "step": 1, "default": 2 },
-    { "key": "crosshairThickness", "group": "crosshair", "label": "Thickness", "type": "number", "min": 1, "max": 4, "step": 1, "default": 1 },
-    { "key": "crosshairDot", "group": "crosshair", "label": "Center dot", "type": "bool", "default": false },
-    { "key": "crosshairOutline", "group": "crosshair", "label": "Outline", "type": "bool", "default": true },
-
-    { "key": "compactTooltips", "group": "tooltips", "label": "Compact tooltips", "type": "bool", "default": true, "hint": "Shorter item tooltips: no blank lines or wordy sections." },
-    { "key": "tooltipMaxLines", "group": "tooltips", "label": "Max lines (Shift shows all)", "type": "number", "min": 2, "max": 20, "step": 1, "default": 6 },
-    { "key": "hideAttributeLines", "group": "tooltips", "label": "Hide attribute lines", "type": "bool", "default": true, "hint": "Drops the \"When in Main Hand\" stat block." },
-
-    { "key": "toggleSprint", "group": "movement", "label": "Toggle sprint", "type": "bool", "default": false },
-    { "key": "toggleSneak", "group": "movement", "label": "Toggle sneak", "type": "bool", "default": false },
-
-    { "key": "unfocusedFps", "group": "performance", "label": "Save power in background", "type": "bool", "default": true, "hint": "Caps FPS at 15 while Minecraft is not focused." }
+    {
+      "key": "fpsHud",
+      "group": "hud",
+      "label": "FPS counter",
+      "type": "bool",
+      "default": true,
+      "hint": "Frames per second in the corner."
+    },
+    {
+      "key": "cpsHud",
+      "group": "hud",
+      "label": "CPS counter",
+      "type": "bool",
+      "default": false,
+      "hint": "Left and right clicks per second."
+    },
+    {
+      "key": "keystrokes",
+      "group": "hud",
+      "label": "Keystrokes",
+      "type": "bool",
+      "default": false,
+      "hint": "WASD, Space and mouse buttons light up as you press them."
+    },
+    {
+      "key": "coordinates",
+      "group": "hud",
+      "label": "Coordinates",
+      "type": "bool",
+      "default": true,
+      "hint": "XYZ with facing direction."
+    },
+    {
+      "key": "biomeHud",
+      "group": "hud",
+      "label": "Biome",
+      "type": "bool",
+      "default": false,
+      "hint": "The biome you are standing in."
+    },
+    {
+      "key": "armorHud",
+      "group": "hud",
+      "label": "Armor status",
+      "type": "bool",
+      "default": true,
+      "hint": "Worn armor, main hand and offhand with durability; turns gold, then red, when low.",
+      "module": true,
+      "lunar": "Armor Status"
+    },
+    {
+      "key": "armorHudStyle",
+      "group": "hud",
+      "label": "Armor durability as",
+      "type": "choice",
+      "options": [
+        "number",
+        "percent",
+        "bar"
+      ],
+      "default": "number",
+      "labels": [
+        "Number",
+        "Percent",
+        "Bar"
+      ]
+    },
+    {
+      "key": "armorHudLayout",
+      "group": "hud",
+      "label": "Armor layout",
+      "type": "choice",
+      "options": [
+        "vertical",
+        "horizontal"
+      ],
+      "default": "vertical",
+      "labels": [
+        "Vertical",
+        "Horizontal"
+      ]
+    },
+    {
+      "key": "potionHud",
+      "group": "hud",
+      "label": "Potion effects",
+      "type": "bool",
+      "default": true,
+      "hint": "Active effects with time left."
+    },
+    {
+      "key": "pingHud",
+      "group": "hud",
+      "label": "Ping",
+      "type": "bool",
+      "default": false,
+      "hint": "Latency to the server."
+    },
+    {
+      "key": "speedHud",
+      "group": "hud",
+      "label": "Speed",
+      "type": "bool",
+      "default": false,
+      "hint": "Horizontal speed in blocks per second."
+    },
+    {
+      "key": "clockHud",
+      "group": "hud",
+      "label": "Clock",
+      "type": "bool",
+      "default": false,
+      "hint": "Real-world time."
+    },
+    {
+      "key": "memoryHud",
+      "group": "hud",
+      "label": "Memory",
+      "type": "bool",
+      "default": false,
+      "hint": "Java heap in use."
+    },
+    {
+      "key": "serverHud",
+      "group": "hud",
+      "label": "Server address",
+      "type": "bool",
+      "default": false,
+      "hint": "The server you are connected to."
+    },
+    {
+      "key": "saturationHud",
+      "group": "hud",
+      "label": "Saturation",
+      "type": "bool",
+      "default": false,
+      "hint": "Hidden hunger saturation next to your food.",
+      "lunar": "Saturation"
+    },
+    {
+      "key": "dayCounter",
+      "group": "hud",
+      "label": "Day counter",
+      "type": "bool",
+      "default": false,
+      "hint": "Days passed in this world.",
+      "lunar": "Day Counter"
+    },
+    {
+      "key": "effectTimers",
+      "group": "hud",
+      "label": "Effect timers",
+      "type": "bool",
+      "default": true,
+      "hint": "Time-left bar on every status-effect icon.",
+      "module": true,
+      "standalone": [
+        "brew-clock"
+      ],
+      "from": "Brew Clock",
+      "lunar": "Potion Effects"
+    },
+    {
+      "key": "blockInfo",
+      "group": "hud",
+      "label": "Block info",
+      "type": "bool",
+      "default": false,
+      "hint": "Name, icon, tool and distance of the block you look at.",
+      "module": true,
+      "standalone": [
+        "block-brief",
+        "sight-line"
+      ],
+      "from": "Block Brief + Sight Line",
+      "lunar": "WAILA"
+    },
+    {
+      "key": "blockInfoFar",
+      "group": "hud",
+      "label": "Block info past reach",
+      "type": "bool",
+      "default": false,
+      "hint": "Also show blocks beyond reach, up to render distance."
+    },
+    {
+      "key": "itemCounter",
+      "group": "hud",
+      "label": "Item counter",
+      "type": "bool",
+      "default": false,
+      "hint": "How many of your held item (or arrows for a bow) you carry.",
+      "module": true,
+      "lunar": "Item Counter"
+    },
+    {
+      "key": "deathPoint",
+      "group": "hud",
+      "label": "Death point",
+      "type": "bool",
+      "default": true,
+      "hint": "Points back to where you died until you get there.",
+      "module": true,
+      "standalone": [
+        "last-light"
+      ],
+      "from": "Last Light",
+      "lunar": "Waypoints (death waypoint)"
+    },
+    {
+      "key": "durabilityAlert",
+      "group": "hud",
+      "label": "Low durability alert",
+      "type": "bool",
+      "default": true,
+      "hint": "A warning and a soft ding when gear drops below 10%.",
+      "module": true,
+      "standalone": [
+        "fray-bell"
+      ],
+      "from": "Fray Bell",
+      "lunar": "Armor Status"
+    },
+    {
+      "key": "hudScale",
+      "group": "hud",
+      "label": "HUD scale",
+      "type": "number",
+      "min": 0.5,
+      "max": 2,
+      "step": 0.1,
+      "default": 1
+    },
+    {
+      "key": "hudBackground",
+      "group": "hud",
+      "label": "Glass backgrounds",
+      "type": "bool",
+      "default": true,
+      "hint": "Translucent panels behind HUD text."
+    },
+    {
+      "key": "hudColor",
+      "group": "hud",
+      "label": "HUD text color",
+      "type": "color",
+      "default": "#FFFFFF"
+    },
+    {
+      "key": "zoom",
+      "group": "visual",
+      "label": "Zoom",
+      "type": "bool",
+      "default": true,
+      "hint": "Hold C to zoom. Scroll while zooming to adjust."
+    },
+    {
+      "key": "zoomFactor",
+      "group": "visual",
+      "label": "Zoom strength",
+      "type": "number",
+      "min": 2,
+      "max": 10,
+      "step": 0.5,
+      "default": 4
+    },
+    {
+      "key": "smoothZoom",
+      "group": "visual",
+      "label": "Smooth zoom",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "fullbright",
+      "group": "visual",
+      "label": "Fullbright",
+      "type": "bool",
+      "default": false,
+      "hint": "See in the dark without night vision."
+    },
+    {
+      "key": "noHurtCam",
+      "group": "visual",
+      "label": "No hurt camera shake",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "noViewBobbing",
+      "group": "visual",
+      "label": "No view bobbing",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "hideFireOverlay",
+      "group": "visual",
+      "label": "Hide fire overlay",
+      "type": "bool",
+      "default": false,
+      "hint": "Removes the flames covering your screen while burning."
+    },
+    {
+      "key": "hideScoreboard",
+      "group": "visual",
+      "label": "Hide scoreboard",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "freelook",
+      "group": "visual",
+      "label": "Freelook",
+      "type": "bool",
+      "default": true,
+      "hint": "Hold Left Alt to look around without turning.",
+      "module": true,
+      "lunar": "Freelook"
+    },
+    {
+      "key": "chunkBorders",
+      "group": "visual",
+      "label": "Chunk borders",
+      "type": "bool",
+      "default": false,
+      "hint": "Chunk lines in the world. F7 cycles off, this chunk, loaded area.",
+      "module": true,
+      "standalone": [
+        "chunk-lines"
+      ],
+      "from": "Chunk Lines",
+      "lunar": "Chunk Borders"
+    },
+    {
+      "key": "clearWeather",
+      "group": "visual",
+      "label": "Clear weather (visual)",
+      "type": "bool",
+      "default": false,
+      "hint": "Hides rain, snow and storm darkness on your screen only.",
+      "module": true,
+      "standalone": [
+        "clear-skies"
+      ],
+      "from": "Clear Skies",
+      "lunar": "Weather Changer"
+    },
+    {
+      "key": "echoArrow",
+      "group": "visual",
+      "label": "Sound arrows",
+      "type": "bool",
+      "default": false,
+      "hint": "Points at sounds: arrows around the crosshair and/or exact bearings on subtitles. Red hostile, gold note blocks.",
+      "module": true,
+      "standalone": [
+        "echo-arrow"
+      ],
+      "from": "Echo Arrow",
+      "lunar": "none (Subtitles is the closest vanilla feature)"
+    },
+    {
+      "key": "echoArrowMode",
+      "group": "visual",
+      "label": "Sound arrows show on",
+      "type": "choice",
+      "options": [
+        "ring",
+        "subtitles",
+        "both"
+      ],
+      "labels": [
+        "Ring",
+        "Subtitles",
+        "Both"
+      ],
+      "default": "both",
+      "hint": "Subtitles mode needs Subtitles on in Accessibility settings."
+    },
+    {
+      "key": "customCrosshair",
+      "group": "crosshair",
+      "label": "Custom crosshair",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crosshairColor",
+      "group": "crosshair",
+      "label": "Color",
+      "type": "color",
+      "default": "#FFFFFF"
+    },
+    {
+      "key": "crosshairSize",
+      "group": "crosshair",
+      "label": "Arm length",
+      "type": "number",
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "default": 5
+    },
+    {
+      "key": "crosshairGap",
+      "group": "crosshair",
+      "label": "Gap",
+      "type": "number",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "default": 2
+    },
+    {
+      "key": "crosshairThickness",
+      "group": "crosshair",
+      "label": "Thickness",
+      "type": "number",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "default": 1
+    },
+    {
+      "key": "crosshairDot",
+      "group": "crosshair",
+      "label": "Center dot",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crosshairOutline",
+      "group": "crosshair",
+      "label": "Outline",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "compactTooltips",
+      "group": "tooltips",
+      "label": "Compact tooltips",
+      "type": "bool",
+      "default": true,
+      "hint": "Shorter item tooltips: no blank lines or wordy sections."
+    },
+    {
+      "key": "tooltipMaxLines",
+      "group": "tooltips",
+      "label": "Max lines (Shift shows all)",
+      "type": "number",
+      "min": 2,
+      "max": 20,
+      "step": 1,
+      "default": 6
+    },
+    {
+      "key": "hideAttributeLines",
+      "group": "tooltips",
+      "label": "Hide attribute lines",
+      "type": "bool",
+      "default": true,
+      "hint": "Drops the \"When in Main Hand\" stat block."
+    },
+    {
+      "key": "shulkerPreview",
+      "group": "tooltips",
+      "label": "Shulker box preview",
+      "type": "bool",
+      "default": true,
+      "hint": "Hover a shulker box to see what is inside.",
+      "module": true,
+      "standalone": [
+        "shulkerboxtooltip"
+      ],
+      "lunar": "Shulker Preview"
+    },
+    {
+      "key": "shulkerPreviewColor",
+      "group": "tooltips",
+      "label": "Tint preview by box color",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "inventorySort",
+      "group": "inventory",
+      "label": "Sort key (R)",
+      "type": "bool",
+      "default": true,
+      "hint": "Press R to merge and sort your main inventory.",
+      "module": true,
+      "standalone": [
+        "tidy-key"
+      ],
+      "from": "Tidy Key"
+    },
+    {
+      "key": "furnaceGauge",
+      "group": "inventory",
+      "label": "Furnace gauge",
+      "type": "bool",
+      "default": true,
+      "hint": "Fuel, cook time and items left on furnace screens.",
+      "module": true,
+      "standalone": [
+        "hearth-gauge"
+      ],
+      "from": "Hearth Gauge"
+    },
+    {
+      "key": "saturnTitle",
+      "group": "menus",
+      "label": "Saturn title screen",
+      "type": "bool",
+      "default": true,
+      "hint": "Glass home screen. Vanilla is one click away."
+    },
+    {
+      "key": "saturnPause",
+      "group": "menus",
+      "label": "Saturn pause menu",
+      "type": "bool",
+      "default": true,
+      "hint": "Glass pause menu with quick links."
+    },
+    {
+      "key": "menuGlass",
+      "group": "menus",
+      "label": "Glass strength",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "default": 0.6,
+      "hint": "Follows the launcher's glass setting. 0 = solid, no blur."
+    },
+    {
+      "key": "menuAccent",
+      "group": "menus",
+      "label": "Accent",
+      "type": "color",
+      "default": "#7AA8FF"
+    },
+    {
+      "key": "hudLayout",
+      "group": "hud",
+      "label": "HUD layout",
+      "type": "layout",
+      "default": {},
+      "hint": "Positions from the HUD editor."
+    },
+    {
+      "key": "toggleSprint",
+      "group": "movement",
+      "label": "Toggle sprint",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "toggleSneak",
+      "group": "movement",
+      "label": "Toggle sneak",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "unfocusedFps",
+      "group": "performance",
+      "label": "Save power in background",
+      "type": "bool",
+      "default": true,
+      "hint": "Caps FPS at 15 while Minecraft is not focused."
+    }
   ]
 }

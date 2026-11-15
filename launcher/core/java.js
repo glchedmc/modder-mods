@@ -52,7 +52,8 @@ async function javaMajor(bin) {
  * launcher downloaded, or (optionally) one on the system.
  */
 async function findJava(dirs, major, platform, { override, extraDirs = [] } = {}) {
-  if (override && (await exists(override))) return override;
+  // A custom Java path is only used when it is the version this Minecraft needs; otherwise the right one is found or downloaded.
+  if (override && (await exists(override)) && (await javaMajor(override)) === major) return override;
   const roots = [path.join(dirs.runtimes, `java-${major}`), ...extraDirs];
   for (const r of roots) {
     const bin = await javaBinIn(r, platform);
@@ -68,7 +69,12 @@ async function installJava(dirs, major, platform, { imageType = 'jdk', onStatus 
   const arch = adoptiumArch(platform);
   const api = `https://api.adoptium.net/v3/assets/latest/${major}/hotspot?os=${os}&architecture=${arch}&image_type=${imageType}&vendor=eclipse`;
   if (onStatus) onStatus(`Looking up Java ${major} for ${os}/${arch}`);
-  const assets = await fetchJson(api);
+  let assets = await fetchJson(api);
+  if (!assets.length && os === 'mac' && arch === 'aarch64') {
+    // Old Java (8) has no Apple silicon build from Temurin; the Intel build runs under Rosetta.
+    if (onStatus) onStatus(`No Apple silicon Java ${major}; using the Intel build (Rosetta)`);
+    assets = await fetchJson(api.replace('architecture=aarch64', 'architecture=x64'));
+  }
   if (!assets.length) throw new Error(`No Temurin ${major} build for ${os}/${arch}`);
   const pkg = assets[0].binary.package;
   const archive = path.join(dirs.cache, pkg.name);
