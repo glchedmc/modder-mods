@@ -158,6 +158,36 @@ const shots = [
     await p.locator('.player-result').scrollIntoViewIfNeeded();
     await p.waitForTimeout(1800);
   }, { width: 1360, height: 980 }],
+  ['35-friends-chat', '#/friends?pk=' + 'b2'.repeat(32), async (p) => { await p.waitForSelector('.bubble'); await p.waitForTimeout(900); }],
+  ['36-add-friend', '#/friends?add=1', async (p) => {
+    await p.waitForSelector('.add-grid input');
+    await p.fill('.add-grid input', 'SAT-R1LY-6KQ2');
+    await p.click('.add-grid .btn:has-text("Find")');
+    await p.waitForSelector('.found-card');
+    await p.waitForTimeout(700);
+  }],
+  ['37-world-members', '#/friends?tab=worlds', async (p) => {
+    await p.waitForSelector('.world-card');
+    await p.evaluate(() => window.__saturnMock.hostW1());
+    await p.waitForTimeout(500);
+    await p.click('.world-card:has-text("Survival with Sam") .btn[title="Members and settings"]');
+    await p.waitForSelector('.member-pick');
+    await p.waitForTimeout(700);
+  }],
+  ['38-one-click-join', '#/friends?tab=worlds', async (p) => {
+    await p.waitForSelector('.world-card');
+    await p.evaluate(() => window.__saturnMock.hostW1());
+    await p.click('.world-card:has-text("Skyblock") .btn:has-text("Join")');
+    await p.waitForSelector('.join-ready-row', { timeout: 8000 });
+    await p.waitForTimeout(900);
+  }],
+  ['39-invite-notification', '#/home', async (p) => {
+    await p.waitForTimeout(600);
+    await p.evaluate(() => window.__saturnMock.invite());
+    await p.waitForSelector('.toast', { timeout: 5000 }).catch(() => {});
+    await p.waitForTimeout(700);
+  }],
+  ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 
 const only = process.env.SHOTS ? new RegExp(process.env.SHOTS) : null;
