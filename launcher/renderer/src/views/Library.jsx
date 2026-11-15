@@ -14,7 +14,7 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
   const [loaderVersions, setLoaderVersions] = useState([]);
   const [loaderVersion, setLoaderVersion] = useState('');
   const [eula, setEula] = useState(false);
-  const server = loader === 'paper' || loader === 'purpur';
+  const server = loader === 'paper' || loader === 'purpur' || loader === 'fabric-server';
   useEffect(() => { api.listVersions({ snapshots: false }).then(setVersions); }, []);
   useEffect(() => {
     setLoaderVersions([]); setLoaderVersion('');
@@ -30,7 +30,7 @@ export function NewInstanceSheet({ onClose, onCreate, defaults }) {
       <div className="loader-grid">
         {Object.entries(LOADER_META).map(([k, m]) => (
           <div key={k} className={`loader-tile ${loader === k ? 'on' : ''}`} onClick={() => setLoader(k)}>
-            <div className="lt-icon" style={{ background: m.color }}><Icon name={k === 'paper' || k === 'purpur' ? 'server' : 'cube'} size={18} style={{ color: '#fff' }} /></div>
+            <div className="lt-icon" style={{ background: m.color }}><Icon name={k === 'paper' || k === 'purpur' || k === 'fabric-server' ? 'server' : 'cube'} size={18} style={{ color: '#fff' }} /></div>
             <b>{m.label}</b><span>{m.desc}</span>
           </div>
         ))}

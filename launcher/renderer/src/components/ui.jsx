@@ -81,4 +81,5 @@ export const LOADER_META = {
   neoforge: { label: 'NeoForge', color: 'linear-gradient(135deg,#ffb067,#d96a1f)', desc: 'Modern Forge' },
   paper: { label: 'Paper', color: 'linear-gradient(135deg,#f3f3f3,#b9c0d0)', desc: 'Plugin server' },
   purpur: { label: 'Purpur', color: 'linear-gradient(135deg,#e2a3ff,#9b3fd6)', desc: 'Paper fork server' },
+  'fabric-server': { label: 'Fabric Server', color: 'linear-gradient(135deg,#d9c99e,#8a7650)', desc: 'Dedicated, runs Fabric mods' },
 };

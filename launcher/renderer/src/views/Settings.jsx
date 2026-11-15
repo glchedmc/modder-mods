@@ -1,3 +1,4 @@
+import { glassLabel } from '../lib/glass.mjs';
 import { useEffect, useState } from 'react';
 import Icon from '../icons';
 import { api, on, isElectron } from '../api';
@@ -20,7 +21,8 @@ function MicRow({ app }) {
         <span className={`pill ${mic.tone}`} title="Voice chat mods use this permission"><Icon name="mic" size={11} />{mic.label}</span>
         {mic.status === 'not-determined' && <button className="btn primary sm" onClick={async () => setMic(await api.requestMic())}>Allow</button>}
         {(mic.status === 'denied' || mic.status === 'restricted') && <button className="btn sm" onClick={() => api.openMicSettings()}>Open System Settings</button>}
-        {mic.status === 'granted' && <button className="btn sm ghost" onClick={async () => setMic(await api.micStatus())}><Icon name="refresh" size={13} />Check</button>}
+        {mic.soundSettings && <button className="btn sm" title="Pick your input device" onClick={() => api.openMicSettings()}><Icon name="mic" size={13} />Sound settings</button>}
+        {mic.status === 'granted' && !mic.soundSettings && <button className="btn sm ghost" onClick={async () => setMic(await api.micStatus())}><Icon name="refresh" size={13} />Check</button>}
       </div>
     </>
   );
@@ -43,7 +45,7 @@ function KeyRow({ name, label, hint, link, isSet, builtin, onSave }) {
     <div className="setting">
       <div className="label"><b>{label}</b><span>{hint} {link && <a href={link} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>Get a key</a>}</span></div>
       {isSet && !editing ? (
-        <div className="row"><span className="secure-tag"><Icon name="lock" size={12} />Saved in Keychain</span><button className="btn sm" onClick={() => setEditing(true)}>Replace</button><button className="btn sm ghost" onClick={() => onSave(name, '')}>Remove</button></div>
+        <div className="row"><span className="secure-tag" title={storageLabel()}><Icon name="lock" size={12} />Saved securely</span><button className="btn sm" onClick={() => setEditing(true)}>Replace</button><button className="btn sm ghost" onClick={() => onSave(name, '')}>Remove</button></div>
       ) : builtin && !editing ? (
         <div className="row"><span className="secure-tag"><Icon name="check" size={12} />Built-in key is in use</span><button className="btn sm" onClick={() => setEditing(true)}>Replace</button></div>
       ) : (
@@ -91,6 +93,9 @@ function SignInSheet({ onClose, app }) {
   );
 }
 
+let storageCache = null;
+const storageLabel = () => (storageCache ? storageCache.label : 'Secure storage');
+
 export default function Settings({ app }) {
   const [section, setSection] = useState(app.params.section || 'general');
   const [info, setInfo] = useState({});
@@ -98,6 +103,9 @@ export default function Settings({ app }) {
   const s = app.settings;
   const set = (patch) => app.saveSettings(patch);
   useEffect(() => { api.appInfo().then(setInfo); }, []);
+  const [storage, setStorage] = useState(null);
+  const [javas, setJavas] = useState(null);
+  useEffect(() => { api.storageInfo().then((v) => { setStorage(v); storageCache = v; }).catch(() => {}); }, []);
   useEffect(() => { if (app.params.section) setSection(app.params.section); }, [app.params.section]);
 
   return (
@@ -127,16 +135,25 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Theme</b></div><Segmented value={s.theme} onChange={(v) => set({ theme: v })} options={[{ value: 'auto', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} /></div>
             <div className="setting"><div className="label"><b>Accent color</b></div>
               <div className="row">{['#7aa8ff', '#b28dff', '#ff8fb1', '#ffb36b', '#5be49b', '#4fd1e8'].map((c) => <button key={c} onClick={() => set({ accent: c })} style={{ width: 24, height: 24, borderRadius: '50%', border: s.accent === c ? '2px solid #fff' : '2px solid transparent', background: c, boxShadow: `0 0 0 ${s.accent === c ? 3 : 0}px ${c}66, inset 0 1px 0 rgba(255,255,255,.5)` }} />)}</div></div>
-            <div className="setting"><div className="label"><b>Glass intensity</b><span>Blur and translucency of panels.</span></div><Range value={s.glassIntensity} min={0.2} max={1} step={0.05} onChange={(v) => set({ glassIntensity: v })} format={(v) => `${Math.round(v * 100)}%`} /></div>
             <div className="setting"><div className="label"><b>Reduce motion</b><span>Turns off animations.</span></div><Switch on={s.reduceMotion} onChange={(v) => set({ reduceMotion: v })} /></div>
+          </div>
+          <div className="group-title">Glass</div>
+          <div className="group glass">
+            <div className="setting"><div className="label"><b>Glass strength</b><span>0 is solid with no blur: fastest on older or Linux GPUs.</span></div>
+              <div className="range-wide" title="Blur and see-through amount"><Range value={s.glassStrength} min={0} max={1} step={0.05} onChange={(v) => set({ glassStrength: v })} format={(v) => glassLabel(v)} /></div></div>
+            <div className="range-ends"><span>Solid</span><span>Max glass</span></div>
+            <div className="glass-preview">{[['solid', 0, 'Solid'], ['medium', 0.45, 'Medium'], ['max', 1, 'Max']].map(([k, v, l]) => (
+              <button key={k} className={`${k} ${Math.abs((s.reduceTransparency ? 0 : s.glassStrength) - v) < 0.03 ? 'on' : ''}`} title={`Set glass to ${l}`} onClick={() => set({ glassStrength: v, reduceTransparency: false })}><span>{l}</span></button>
+            ))}</div>
+            <div className="setting"><div className="label"><b>Reduce transparency</b><span>Solid panels everywhere, whatever the slider says.</span></div><Switch on={s.reduceTransparency} onChange={(v) => set({ reduceTransparency: v })} /></div>
           </div>
           <div className="group-title">App icon & sidebar</div>
           <div className="group glass">
-            <div className="setting"><div className="label"><b>Dock icon</b><span>Shown in the Dock while Saturn runs.</span></div>
+            <div className="setting"><div className="label"><b>{info.platform && info.platform !== 'darwin' ? 'App icon' : 'Dock icon'}</b><span>{info.platform && info.platform !== 'darwin' ? 'Shown in your taskbar and window switcher.' : 'Shown in the Dock while Saturn runs.'}</span></div>
               <div className="row icon-picker">{APP_ICONS.map(([k, l, src]) => (
                 <button key={k} className={`icon-choice ${(s.appIcon || 'saturn') === k ? 'on' : ''}`} title={l} onClick={async () => { await api.setAppIcon(k); set({ appIcon: k }); }}><img src={src} alt="" /><span>{l}</span></button>
               ))}</div></div>
-            <div className="setting"><div className="label"><b>Collapse sidebar</b><span>Toggle any time with ⌘\.</span></div><Switch on={s.sidebarCollapsed} onChange={(v) => set({ sidebarCollapsed: v })} /></div>
+            <div className="setting"><div className="label"><b>Collapse sidebar</b><span>Toggle any time with {info.platform && info.platform !== 'darwin' ? 'Ctrl' : '⌘'}\.</span></div><Switch on={s.sidebarCollapsed} onChange={(v) => set({ sidebarCollapsed: v })} /></div>
             <div className="setting"><div className="label"><b>Collapsed sidebar shows</b><span>Icons only, or hide it completely.</span></div><Segmented value={s.sidebarMode} onChange={(v) => set({ sidebarMode: v })} options={[{ value: 'icons', label: 'Icons' }, { value: 'hidden', label: 'Nothing' }]} /></div>
           </div>
           <div className="group-title">Backgrounds</div>
@@ -174,8 +191,10 @@ export default function Settings({ app }) {
         {section === 'game' && <>
           <div className="group-title">Java runtime</div>
           <div className="group glass">
-            <div className="setting"><div className="label"><b>Java</b><span>Glass downloads the right Temurin build per version (Java 25 for 26.3).</span></div><span className="pill green"><Icon name="check" size={11} />Automatic</span></div>
-            <div className="setting"><div className="label"><b>Custom Java path</b><span>Optional override.</span></div><div className="field" style={{ width: 300 }}><input placeholder="/Library/Java/JavaVirtualMachines/…/bin/java" defaultValue={s.javaPath} onBlur={(e) => set({ javaPath: e.target.value })} /></div></div>
+            <div className="setting"><div className="label"><b>Java</b><span>Saturn downloads the right Temurin build per version (Java 25 for 26.3), or uses a matching one already installed.</span></div><span className="pill green"><Icon name="check" size={11} />Automatic</span></div>
+            <div className="setting"><div className="label"><b>Installed Java</b><span>{javas === null ? 'Not checked yet.' : javas.length ? javas.map((j) => `Java ${j.major || '?'}${j.managed ? ' (Saturn)' : ''}`).join(' · ') : 'None found. Saturn will download one on first launch.'}</span></div>
+              <button className="btn sm" title="Look for installed Java runtimes" onClick={async () => setJavas(await api.detectJava().catch(() => []))}><Icon name="refresh" size={13} />Detect</button></div>
+            <div className="setting"><div className="label"><b>Custom Java path</b><span>Optional override.</span></div><div className="field" style={{ width: 300 }}><input placeholder={info.platform === 'linux' ? '/usr/lib/jvm/…/bin/java' : '/Library/Java/JavaVirtualMachines/…/bin/java'} defaultValue={s.javaPath} onBlur={(e) => set({ javaPath: e.target.value })} /></div></div>
             <div className="setting"><div className="label"><b>Default memory</b><span>For new instances.</span></div><Range value={s.memoryMb} min={1024} max={16384} step={512} onChange={(v) => set({ memoryMb: v })} format={(v) => `${(v / 1024).toFixed(1)} GB`} /></div>
           </div>
         </>}
@@ -203,7 +222,8 @@ export default function Settings({ app }) {
             <div className="setting"><div className="label"><b>Azure client ID</b><span>Used for Microsoft sign-in. A default is built in; change it only if you registered your own app.</span></div>
               <div className="field key-field"><input placeholder="00000000-0000-0000-0000-000000000000" defaultValue={s.msaClientId} onBlur={(e) => set({ msaClientId: e.target.value.trim() })} spellCheck={false} /></div></div>
           </div>
-          <div className="group-title"><Icon name="lock" size={13} />API keys · stored in the macOS Keychain</div>
+          <div className="group-title"><Icon name="lock" size={13} />API keys · stored in {storage ? storage.label : 'secure storage'}</div>
+          {storage && storage.mode === 'file' && <div className="notice amber glass flat" style={{ marginBottom: 10 }}><Icon name="info" size={16} /><div>No desktop keyring (GNOME Keyring / KWallet) was found, so keys are kept in a private file only your user can read. Install gnome-keyring for encrypted storage.</div></div>}
           <div className="group glass">
             <KeyRow name="xaiApiKey" label="xAI (Grok) API key" hint="Powers Upgrade to 26.3 and Grok skins." link="https://console.x.ai" isSet={app.secrets.xaiApiKey} onSave={app.setSecret} />
             <KeyRow name="openaiApiKey" label="OpenAI (ChatGPT) API key" hint="Optional. Generates skins with gpt-image-1." link="https://platform.openai.com/api-keys" isSet={app.secrets.openaiApiKey} onSave={app.setSecret} />
