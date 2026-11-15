@@ -58,7 +58,19 @@ async function askMic() {
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'glass-bg', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true, bypassCSP: true } },
+  { scheme: 'glass-art', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, bypassCSP: true } },
 ]);
+
+/** Opens a manual (non-Steam) game: .app bundles and .desktop files via the OS, executables directly. */
+function openGamePath(p) {
+  if (/\.app\/?$/i.test(p) || /\.desktop$/i.test(p)) return shell.openPath(p).then((err) => { if (err) throw new Error(err); });
+  const { spawn } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const child = spawn(p, [], { cwd: path.dirname(p), detached: true, stdio: 'ignore' });
+    child.once('error', (e) => reject(new Error(e.code === 'EACCES' ? `${path.basename(p)} isn’t executable (chmod +x it).` : e.message)));
+    child.once('spawn', () => { child.unref(); resolve(); });
+  });
+}
 
 let win;
 let service;
@@ -120,6 +132,7 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava',
+  'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame',
   'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
   'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
@@ -177,6 +190,37 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Games tab: cached Steam art, Play (steam://rungameid/<appid> or a manual executable), Open in Steam.
+  protocol.handle('glass-art', async (request) => {
+    try {
+      const name = decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, ''));
+      const full = service.games.artPath(name);
+      if (!(await exists(full))) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(full).href);
+    } catch {
+      return new Response('Forbidden', { status: 403 });
+    }
+  });
+  const runGame = async (target) => {
+    if (target.kind === 'url') await shell.openExternal(target.url);
+    else await openGamePath(target.path);
+    return true;
+  };
+  ipcMain.handle('api:playGame', async (_e, id) => {
+    try { return { ok: true, value: await runGame(await service.games.launchTarget(String(id))) }; } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('api:openGameInSteam', async (_e, id) => {
+    try { return { ok: true, value: await runGame(service.games.storeTarget(String(id))) }; } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('api:pickGameExecutable', async () => {
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Add a game',
+      defaultPath: process.platform === 'darwin' ? '/Applications' : undefined,
+      properties: ['openFile'],
+      filters: process.platform === 'darwin' ? [{ name: 'Apps', extensions: ['app'] }, { name: 'All Files', extensions: ['*'] }] : [{ name: 'All Files', extensions: ['*'] }],
+    });
+    return { ok: true, value: r.canceled ? null : r.filePaths[0] };
+  });
   ipcMain.handle('api:micStatus', () => ({ ok: true, value: micStatus() }));
   ipcMain.handle('api:requestMic', async () => ({ ok: true, value: await askMic() }));
   ipcMain.handle('api:openMicSettings', async () => {
