@@ -4,6 +4,36 @@ import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+
+// Simulated macOS traffic lights at the exact spot main.js asks Electron for, plus an overlap check.
+const MAC = JSON.parse(readFileSync(new URL('../core/mac-chrome.json', import.meta.url), 'utf8'));
+async function macLights(p) {
+  const report = await p.evaluate((m) => {
+    const colors = ['#ff5f57', '#febc2e', '#28c840'];
+    const lights = colors.map((c, i) => {
+      const d = document.createElement('div');
+      const x = m.trafficLights.x + i * (m.buttonSize + m.buttonGap);
+      Object.assign(d.style, { position: 'fixed', left: `${x}px`, top: `${m.trafficLights.y}px`, width: `${m.buttonSize}px`, height: `${m.buttonSize}px`, borderRadius: '50%', background: c, boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,.3)', zIndex: 99999 });
+      document.body.appendChild(d);
+      return { left: x, top: m.trafficLights.y, right: x + m.buttonSize, bottom: m.trafficLights.y + m.buttonSize };
+    });
+    const group = { left: lights[0].left, top: lights[0].top, right: lights[2].right, bottom: lights[2].bottom };
+    const rect = (sel) => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : null; };
+    const hit = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const sb = rect('.sidebar');
+    const sbVisible = sb && getComputedStyle(document.querySelector('.sidebar')).opacity !== '0';
+    return {
+      group,
+      sidebar: sbVisible ? sb : null,
+      insideSidebar: sbVisible ? group.left - sb.left >= 12 && sb.right - group.right >= 12 && group.top - sb.top >= 12 : null,
+      overlaps: ['.brand .saturn-mark, .brand svg, .brand img', '.brand-text', '.sidebar-toggle', '.nav button', '.toolbar h1'].filter((s) => [...document.querySelectorAll(s)].some((e) => { const r = e.getBoundingClientRect(); return r.width && hit(group, { left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 }); })),
+      toggleGap: (() => { const t = rect('.sidebar-toggle'); return t ? Math.round(t.left - group.right) : null; })(),
+    };
+  }, MAC);
+  console.log('mac chrome', JSON.stringify(report));
+  if (report.overlaps.length || report.insideSidebar === false) console.log('OVERLAP!', report.overlaps);
+}
 
 const out = path.resolve(process.argv[2] || 'screenshots');
 mkdirSync(out, { recursive: true });
@@ -200,6 +230,15 @@ const shots = [
   }],
   ['60-games-tab', '#/games', async (p) => { await p.waitForSelector('.game-tile'); await p.waitForTimeout(3500); }],
   ['61-games-filter', '#/games', async (p) => { await p.waitForSelector('.filter-chip'); await p.click('.hidden-games button'); await p.evaluate(() => document.querySelectorAll('*').forEach((e) => { if (e.scrollTop) e.scrollTop = 0; })); await p.waitForTimeout(3500); }, { width: 1360, height: 1180 }],
+  ['62-mac-sidebar-expanded', '?platform=mac#/home', async (p) => { await p.waitForTimeout(600); await macLights(p); }],
+  ['63-mac-sidebar-collapsed', '?platform=mac#/home', async (p) => { await p.click('.sidebar-toggle'); await p.waitForTimeout(1000); await macLights(p); }],
+  ['64-mac-sidebar-hidden', '?platform=mac#/settings?section=appearance', async (p) => {
+    await p.getByRole('tab', { name: 'Nothing' }).click();
+    await p.waitForTimeout(300);
+    await p.evaluate(() => { location.hash = '#/home'; });
+    await p.waitForSelector('.hero');
+    await p.click('.sidebar-toggle'); await p.waitForTimeout(1000); await macLights(p);
+  }],
   ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 

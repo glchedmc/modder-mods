@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.9-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.10-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.9-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.9-x86_64.AppImage && ./SaturnClient-0.1.9-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.10-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.10-x86_64.AppImage && ./SaturnClient-0.1.10-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,18 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.10: Mac title bar fix
+
+- The macOS close / minimize / zoom buttons now sit inside the sidebar's glass with even padding, in their own 52px drag strip, so the Saturn logo starts below them instead of crowding the corner.
+- The collapsed (icons-only) sidebar is wider on Mac (84px), so the three buttons fit inside it with room on both sides; the sidebar toggle stays well clear of them, including when the sidebar is fully hidden.
+- Linux keeps its own window controls unchanged.
+
+**macOS says "Saturn Client is damaged" or "can't be opened"?** The build isn't notarized, so macOS quarantines the download. After moving the app to Applications, run this once in Terminal, then open it again:
+
+```
+xattr -dr com.apple.quarantine "/Applications/Saturn Client.app"
+```
 
 ## What's new in 0.1.9: no-violence filter for the Games tab
 
