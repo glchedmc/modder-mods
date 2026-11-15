@@ -21,10 +21,18 @@ import mc.glched.glasscompanion.modules.EchoArrow;
 import mc.glched.glasscompanion.modules.Freelook;
 import mc.glched.glasscompanion.modules.InventorySort;
 import mc.glched.glasscompanion.modules.ShulkerPreview;
+import mc.glched.glasscompanion.waypoints.MinimapBridge;
+import mc.glched.glasscompanion.waypoints.WaypointKeys;
+import mc.glched.glasscompanion.waypoints.WaypointRenderer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -51,6 +59,10 @@ public final class GlassCompanion implements ClientModInitializer {
 		CompanionConfig.loadCatalog();
 		CompanionConfig.load();
 
+		// Saturn's space panorama ships as a built-in resource pack, on by default; turn it off in Resource Packs.
+		FabricLoader.getInstance().getModContainer(MOD_ID).ifPresent(mod -> ResourceLoader.registerBuiltinPack(
+				id("saturn_panorama"), mod, Component.literal("Saturn panorama"), PackActivationType.DEFAULT_ENABLED));
+
 		KeyMapping.Category category = KeyMapping.Category.register(id("main"));
 		menuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.glass-companion.menu", InputConstants.Type.KEYBOARD, InputConstants.KEY_RSHIFT, category));
@@ -62,6 +74,7 @@ public final class GlassCompanion implements ClientModInitializer {
 				"key.glass-companion.sort", InputConstants.Type.KEYBOARD, InputConstants.KEY_R, category));
 		chunkKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.glass-companion.chunks", InputConstants.Type.KEYBOARD, InputConstants.KEY_F7, category));
+		WaypointKeys.register(category);
 
 		HudElementRegistry.addLast(id("hud"), HudRenderer::extract);
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (HudElement) (graphics, delta) -> {
@@ -83,6 +96,19 @@ public final class GlassCompanion implements ClientModInitializer {
 		HudElementRegistry.addLast(id("echo_arrow"), EchoArrow::extractHud);
 		EchoArrow.init();
 		LevelRenderEvents.BEFORE_GIZMOS.register(context -> ChunkBorders.emit());
+		LevelRenderEvents.BEFORE_GIZMOS.register(context -> WaypointRenderer.emitWorld());
+		HudElementRegistry.attachElementAfter(VanillaHudElements.MISC_OVERLAYS, id("waypoints"), WaypointRenderer::extractHud);
+		// Minimap markers go right after Corner Atlas's map; its element exists once every mod has initialized.
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			if (!MinimapBridge.present()) {
+				return;
+			}
+			try {
+				HudElementRegistry.attachElementAfter(Identifier.fromNamespaceAndPath("corner-atlas", "minimap"), id("waypoint_minimap"), WaypointRenderer::extractMinimap);
+			} catch (RuntimeException ex) {
+				HudElementRegistry.addLast(id("waypoint_minimap"), WaypointRenderer::extractMinimap);
+			}
+		});
 		// Sort key also works with the inventory or a container open (like Tidy Key).
 		ScreenEvents.BEFORE_INIT.register((client, screen, w, h) -> {
 			if (screen instanceof AbstractContainerScreen<?>) {
@@ -112,6 +138,7 @@ public final class GlassCompanion implements ClientModInitializer {
 		while (sortKey.consumeClick()) {
 			InventorySort.trigger(client);
 		}
+		WaypointKeys.tick(client);
 		while (chunkKey.consumeClick()) {
 			ChunkBorders.cycle(client);
 		}

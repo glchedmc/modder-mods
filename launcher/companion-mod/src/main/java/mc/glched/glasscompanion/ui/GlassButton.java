@@ -45,17 +45,17 @@ public class GlassButton extends AbstractButton {
 		switch (style) {
 			case PRIMARY -> {
 				int a = Glass.accent();
-				Glass.rounded(g, x1, y1, x2, y2, 6, (hot ? 0xF0 : 0xD8) << 24 | (Glass.mix(a, 0xFFFFFF, hot ? 0.18f : 0f) & 0xFFFFFF));
+				Glass.rounded(g, x1, y1, x2, y2, 6, (hot ? 0xF8 : 0xE8) << 24 | (Glass.mix(a, 0xFFFFFF, hot ? 0.28f : 0.1f) & 0xFFFFFF));
 				g.fill(x1 + 6, y1, x2 - 6, y1 + 1, 0x90FFFFFF);
 				g.fillGradient(x1 + 4, y1 + 1, x2 - 4, y1 + height / 2, 0x40FFFFFF, 0x00FFFFFF);
 			}
 			case DANGER -> Glass.panel(g, x1, y1, x2, y2, hot ? 1f : 0.8f, hot ? 0x7A2236 : 0x3A1A2E, 6);
 			case GHOST -> {
 				if (hot) {
-					Glass.rounded(g, x1, y1, x2, y2, 6, 0x30FFFFFF);
+					Glass.rounded(g, x1, y1, x2, y2, 6, 0x40FFFFFF);
 				}
 			}
-			default -> Glass.panel(g, x1, y1, x2, y2, hot ? 1f : 0.75f, hot ? 0x2A3270 : 0x161A3A, 6);
+			default -> Glass.panel(g, x1, y1, x2, y2, hot ? 1f : 0.85f, hot ? 0x3A4596 : 0x252C62, 6);
 		}
 		int color = active ? 0xFFFFFFFF : 0x80FFFFFF;
 		String text = getMessage().getString();
@@ -63,17 +63,17 @@ public class GlassButton extends AbstractButton {
 		int ty = caption == null ? y1 + (height - font.lineHeight) / 2 + 1 : y1 + height / 2 - font.lineHeight;
 		if (glyph != null && caption != null) {
 			// Tile layout: glyph left, label and caption stacked.
-			g.text(font, glyph, x1 + 10, y1 + (height - font.lineHeight) / 2 + 1, Glass.mix(Glass.accent(), 0xFFFFFF, 0.5f), false);
+			g.text(font, glyph, x1 + 10, y1 + (height - font.lineHeight) / 2 + 1, Glass.mix(Glass.accent(), 0xFFFFFF, 0.65f), false);
 			tx = x1 + 26;
 			g.text(font, text, tx, ty, color, false);
-			g.text(font, caption, tx, ty + font.lineHeight + 2, 0xB0C8D2F0, false);
+			g.text(font, caption, tx, ty + font.lineHeight + 2, 0xE0DCE4FF, false);
 			return;
 		}
 		String full = glyph != null ? glyph + "  " + text : text;
 		tx = x1 + (width - font.width(full)) / 2;
 		g.text(font, full, tx, ty, color, style != Style.PRIMARY);
 		if (caption != null) {
-			g.centeredText(font, caption, x1 + width / 2, ty + font.lineHeight + 2, 0xB0C8D2F0);
+			g.centeredText(font, caption, x1 + width / 2, ty + font.lineHeight + 2, 0xE0DCE4FF);
 		}
 	}
 

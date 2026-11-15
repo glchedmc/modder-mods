@@ -41,11 +41,11 @@ public final class Glass {
 		int fill = (alpha(weight) << 24) | (rgb & 0xFFFFFF);
 		rounded(g, x1, y1, x2, y2, radius, fill);
 		// Sheen on the top third and a thin light rim, like the launcher's glass cards.
-		int sheen = Math.round(40 * weight * (0.4f + strength())) << 24 | 0xFFFFFF;
+		int sheen = Math.round(52 * weight * (0.4f + strength())) << 24 | 0xFFFFFF;
 		g.fillGradient(x1 + radius, y1 + 1, x2 - radius, y1 + Math.max(3, (y2 - y1) / 3), sheen, 0x00FFFFFF);
-		int rim = Math.round(70 * weight) << 24 | 0xFFFFFF;
+		int rim = Math.round(95 * weight) << 24 | 0xFFFFFF;
 		g.fill(x1 + radius, y1, x2 - radius, y1 + 1, rim);
-		int rimLow = Math.round(28 * weight) << 24 | 0xFFFFFF;
+		int rimLow = Math.round(36 * weight) << 24 | 0xFFFFFF;
 		g.fill(x1 + radius, y2 - 1, x2 - radius, y2, rimLow);
 		g.fill(x1, y1 + radius, x1 + 1, y2 - radius, rimLow);
 		g.fill(x2 - 1, y1 + radius, x2, y2 - radius, rimLow);
@@ -63,9 +63,9 @@ public final class Glass {
 		g.fill(x1, y1 + r, x2, y2 - r, color);
 	}
 
-	/** The Saturn ring logo. */
+	/** The Saturn ring logo (ring and crystal on transparency, 256 px texture). */
 	public static void logo(GuiGraphicsExtractor g, int x, int y, int size) {
-		g.blit(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0f, 0f, size, size, 128, 128, 128, 128);
+		g.blit(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0f, 0f, size, size, 256, 256, 256, 256);
 	}
 
 	/** Darkening wash over a blurred background, lighter when the glass is clearer. */
