@@ -19,7 +19,7 @@ export default function Home({ app }) {
   const needsPort = (inst.mods || []).filter((m) => compat[m.file] && compat[m.file].status === 'needs-port');
   const updates = (inst.mods || []).filter((m) => compat[m.file] && compat[m.file].status === 'update');
   const loader = LOADER_META[inst.loader];
-  const recent = instances.filter((i) => i.id !== inst.id).slice(0, 3);
+  const recent = instances.filter((i) => i.id !== inst.id && i.type !== 'server').slice(0, 3);
 
   return (
     <div className="view-enter stagger">
@@ -54,6 +54,18 @@ export default function Home({ app }) {
           </>}
         </div>
       </section>
+
+      {app.lastFailure && app.lastFailure.id === inst.id && !busy && (
+        <div className="glass card" style={{ marginTop: 14, padding: 16, display: 'flex', gap: 12, alignItems: 'center', borderColor: 'rgba(255,120,120,.5)' }}>
+          <Icon name="info" size={20} style={{ color: 'var(--red)', flex: 'none' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b>{inst.name} didn’t start</b>
+            <div className="muted" style={{ fontSize: 13, marginTop: 2, wordBreak: 'break-word' }}>{app.lastFailure.error}</div>
+          </div>
+          <button className="btn sm" onClick={() => app.showLaunchLog(inst.id)}><Icon name="folder" size={13} />Show log</button>
+          <button className="btn sm" onClick={app.dismissFailure}>Dismiss</button>
+        </div>
+      )}
 
       {needsPort.length > 0 && (
         <div className="upgrade-card glass" style={{ marginTop: 14 }}>

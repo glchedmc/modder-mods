@@ -67,7 +67,7 @@ export default function App() {
   const toast = useCallback((text, kind = 'info', action = null) => {
     const id = Math.random();
     setToasts((t) => [...t, { id, text, kind, action }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 8000 : 4200);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 14000 : 4200);
   }, []);
   const dismiss = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
@@ -79,15 +79,29 @@ export default function App() {
 
   const selected = useMemo(() => {
     if (!settings) return null;
-    return instances.find((i) => i.id === settings.selectedInstance) || instances[0] || null;
+    // Play only ever targets a game (client) instance; dedicated servers are started from the Host page.
+    const clients = instances.filter((i) => i.type !== 'server');
+    return clients.find((i) => i.id === settings.selectedInstance) || clients[0] || null;
   }, [instances, settings]);
+  const [lastFailure, setLastFailure] = useState(null);
 
   useEffect(() => { if (selected) api.checkMods(selected.id).then(setCompat).catch(() => {}); }, [selected && selected.id]);
 
   useEffect(() => {
     const offs = [
       on('launch:progress', (p) => setLaunchState((s) => ({ ...(s || {}), ...p, state: 'preparing' }))),
-      on('launch:state', (p) => { setLaunchState((s) => ({ ...(s || {}), ...p })); if (p.state === 'exited' || p.state === 'error') { setTimeout(() => setLaunchState(null), 400); if (p.error) toast(p.error, 'error'); refresh(); } }),
+      on('launch:state', (p) => {
+        setLaunchState((s) => ({ ...(s || {}), ...p }));
+        if (p.state === 'running') setLastFailure(null);
+        if (p.state === 'exited' || p.state === 'error') {
+          setTimeout(() => setLaunchState(null), 400);
+          if (p.error) {
+            setLastFailure({ id: p.id, error: p.error, code: p.code, logFile: p.logFile });
+            if (p.state === 'exited') toast(p.error, 'error', { label: 'Show log', icon: 'folder', run: () => api.revealLaunchLog(p.id).catch(() => {}) });
+          }
+          refresh();
+        }
+      }),
       on('launch:log', ({ id, line }) => setLogs((l) => ({ ...l, [id]: [...(l[id] || []).slice(-1500), line] }))),
       on('grok:job', (job) => { if (job.state !== 'running') { toast(job.state === 'done' ? `${job.title} upgraded to ${job.to} and installed` : `${job.title}: upgrade ${job.state}`, job.state === 'done' ? 'ok' : 'error'); refresh(); } }),
       on('host:update', (u) => { if (u.address) toast(`Your world is live at ${u.address}`, 'ok'); }),
@@ -146,14 +160,23 @@ export default function App() {
   const app = {
     route, params, go, settings, secrets, instances, selected, accounts, account: accounts[0] || null, compat, launchState, logs, toast, refresh,
     featureCount: features.features.filter((f) => f.type === 'bool').length,
-    setSelected: async (id) => { setSettings(await api.setSettings({ selectedInstance: id })); if (route !== 'home' && route !== 'library') go('home'); },
+    setSelected: async (id) => { const t = instances.find((i) => i.id === id); if (t && t.type === 'server') { go('instance', { id }); return; } setSettings(await api.setSettings({ selectedInstance: id })); if (route !== 'home' && route !== 'library') go('home'); },
     saveSettings: async (patch) => setSettings(await api.setSettings(patch)),
     toggleSidebar: () => { const v = !settings.sidebarCollapsed; setSettings({ ...settings, sidebarCollapsed: v }); api.setSettings({ sidebarCollapsed: v }); },
     setSecret: async (name, value) => { setSecrets(await api.setSecret(name, value)); toast(value ? 'Saved to Keychain' : 'Key removed', 'ok'); },
-    createInstance: async (p) => { try { const inst = await api.createInstance(p); await api.setSettings({ selectedInstance: inst.id }); await refresh(); toast(`${inst.name} is ready`, 'ok'); go('home'); } catch (e) { toast(e.message, 'error'); } },
+    createInstance: async (p) => { try { const inst = await api.createInstance(p); if (inst.type !== 'server') await api.setSettings({ selectedInstance: inst.id }); await refresh(); toast(`${inst.name} is ready`, 'ok'); go(inst.type === 'server' ? 'library' : 'home'); } catch (e) { toast(e.message, 'error'); } },
     updateInstance: async (id, patch) => { await api.updateInstance(id, patch); refresh(); },
     removeInstance: async (id) => { await api.removeInstance(id); await refresh(); go('library'); },
-    launch: async (inst) => { setLaunchState({ id: inst.id, state: 'preparing', phase: 'Preparing', done: 0, total: 1 }); try { await api.launch(inst.id); } catch (e) { setLaunchState(null); toast(e.message, 'error'); } },
+    launch: async (inst) => {
+      setLastFailure(null);
+      setLaunchState({ id: inst.id, state: 'preparing', phase: 'Preparing', done: 0, total: 1 });
+      try { await api.launch(inst.id, { asServer: inst.type === 'server' }); } catch (e) {
+        setLaunchState(null);
+        setLastFailure({ id: inst.id, error: e.message, logFile: e.logFile });
+        toast(e.message, 'error', { label: 'Show log', icon: 'folder', run: () => api.revealLaunchLog(inst.id).catch(() => {}) });
+      }
+    },
+    lastFailure, dismissFailure: () => setLastFailure(null), showLaunchLog: (id) => api.revealLaunchLog(id).catch(() => {}),
     checkMods: async (inst) => { setCompat(await api.checkMods(inst.id)); toast('Checked for updates', 'ok'); },
     installMod: async (inst, source, hit) => {
       try { const r = await api.installMod(inst.id, source, hit.id, hit.title); toast(`Installed ${hit.title}${r.added.length > 1 ? ` + ${r.added.length - 1} dependenc${r.added.length > 2 ? 'ies' : 'y'}` : ''}`, 'ok'); if (r.missing && r.missing.length) toast(`${r.missing.length} required dependency has no ${inst.mcVersion} build`, 'error'); refresh(); } catch (e) { toast(e.message, 'error'); }
@@ -181,7 +204,7 @@ export default function App() {
       <div className={`app ${isMac ? 'mac' : ''} ${isLinux ? 'linux' : ''} ${collapsed ? `sb-collapsed sb-${settings.sidebarMode === 'hidden' ? 'hidden' : 'icons'}` : ''}`}>
         <aside className="sidebar glass" aria-hidden={hidden}>
           <div className="traffic"><i /><i /><i /></div>
-          <div className="brand"><SaturnMark size={30} /><div className="brand-text"><b>Saturn</b><small>Client</small></div></div>
+          <div className="brand"><SaturnMark size={30} /><div className="brand-text"><b>Saturn</b></div></div>
           <div className="sidebar-scroll">
             <nav className="nav">
               {NAV.map(([k, label, icon]) => (
@@ -194,7 +217,7 @@ export default function App() {
             </nav>
             <div className="nav-label">Instances</div>
             <nav className="nav">
-              {instances.slice(0, 4).map((i) => (
+              {instances.filter((i) => i.type !== 'server').slice(0, 4).map((i) => (
                 <button key={i.id} title={iconsOnly ? i.name : undefined} className={selected && selected.id === i.id && route === 'home' ? 'active' : ''} onClick={() => app.setSelected(i.id).then(() => go('home'))}>
                   <span className="inst-dot" style={{ background: i.accent }} />
                   <span className="truncate nav-text">{i.name}</span>
