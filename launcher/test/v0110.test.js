@@ -54,6 +54,6 @@ test('Linux keeps its own chrome: no Mac rules leak, custom traffic dots still h
 
 test('README explains the macOS quarantine (xattr) fix', () => {
   const readme = r('README.md');
-  assert.match(readme, /xattr -dr com\.apple\.quarantine "\/Applications\/Saturn Client\.app"/);
+  assert.match(readme, /xattr -cr \/Applications\/Saturn\.app/);
   assert.match(readme, /0\.1\.10/);
 });

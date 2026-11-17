@@ -54,15 +54,15 @@ test('layout entries for the new elements are saved with position and scale (and
   assert.equal(out.hudLayout.notAnElement, undefined);
 });
 
-test('companion jar 0.1.11 is bundled, versions agree, and no keys are inside', () => {
+test('companion jar is bundled, versions agree, and no keys are inside', () => {
   const props = fs.readFileSync(path.join(root, 'companion-mod/gradle.properties'), 'utf8');
-  assert.match(props, /mod_version=0\.1\.11/);
+  assert.match(props, /mod_version=0\.1\.13/);
   const jars = fs.readdirSync(path.join(root, 'resources/companion')).filter((f) => f.endsWith('.jar'));
-  assert.deepEqual(jars, ['glass-companion-0.1.11.jar']);
+  assert.deepEqual(jars, ['glass-companion-0.1.13.jar']);
   const buf = fs.readFileSync(path.join(root, 'resources/companion', jars[0]));
   assert.ok(buf.length > 100000);
   const key = path.join(root, '..', 'secrets', 'curseforge.key');
   if (fs.existsSync(key)) assert.ok(!buf.includes(fs.readFileSync(key, 'utf8').trim()), 'no CurseForge key in the jar');
   assert.match(fs.readFileSync(path.join(root, 'scripts/build-companion.js'), 'utf8'), /Newest version wins \(numeric compare/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /0\.1\.11/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /0\.1\.13/);
 });

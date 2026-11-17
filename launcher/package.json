@@ -1,8 +1,8 @@
 {
   "name": "saturn-client",
-  "productName": "Saturn Client",
-  "version": "0.1.12",
-  "description": "Saturn Client: a liquid-glass Minecraft Java launcher for macOS and Linux with built-in mod browsing, friends and encrypted chat, one-click peer-to-peer world joins with voice chat, skins and a skin editor, cosmetics and Grok-powered mod upgrades.",
+  "productName": "Saturn",
+  "version": "0.1.13",
+  "description": "Saturn: a liquid-glass Minecraft Java launcher for macOS and Linux with built-in mod browsing, friends and encrypted chat, one-click peer-to-peer world joins with voice chat, skins and a skin editor, cosmetics and Grok-powered mod upgrades.",
   "author": {
     "name": "glchedmc",
     "email": "glchedmc@users.noreply.github.com"
@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV=1 electron .\"",
     "build:renderer": "vite build",
-    "build:mod": "node scripts/build-companion.js",
+    "build:mod": "node scripts/make-icon.mjs; node scripts/build-companion.js",
     "icon": "node scripts/make-icon.mjs",
     "inject": "node scripts/inject-defaults.js",
     "test": "node --test test/*.test.js",
@@ -44,7 +44,7 @@
   },
   "build": {
     "appId": "com.glchedmc.saturnclient",
-    "productName": "Saturn Client",
+    "productName": "Saturn",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -69,14 +69,15 @@
       "category": "public.app-category.games",
       "icon": "build/icon.icns",
       "identity": null,
+      "artifactName": "Saturn-${version}-${arch}.${ext}",
       "hardenedRuntime": false,
       "target": [
         "zip"
       ],
       "extendInfo": {
         "NSRequiresAquaSystemAppearance": false,
-        "NSMicrophoneUsageDescription": "Saturn Client needs the microphone so voice chat mods like Simple Voice Chat can hear you in game.",
-        "CFBundleDisplayName": "Saturn Client"
+        "NSMicrophoneUsageDescription": "Saturn needs the microphone so voice chat mods like Simple Voice Chat can hear you in game.",
+        "CFBundleDisplayName": "Saturn"
       },
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
@@ -102,16 +103,16 @@
           ]
         }
       ],
-      "executableName": "saturn-client",
-      "artifactName": "SaturnClient-${version}-${arch}.${ext}",
+      "executableName": "saturn",
+      "artifactName": "Saturn-${version}-${arch}.${ext}",
       "icon": "build/icon.png",
       "category": "Game",
       "synopsis": "Liquid-glass Minecraft launcher",
       "maintainer": "glchedmc <glchedmc@users.noreply.github.com>",
       "desktop": {
         "entry": {
-          "Name": "Saturn Client",
-          "StartupWMClass": "saturn-client",
+          "Name": "Saturn",
+          "StartupWMClass": "saturn",
           "Keywords": "minecraft;launcher;mods;"
         }
       },
@@ -135,5 +136,5 @@
     }
   },
   "homepage": "https://github.com/glchedmc/modder-mods",
-  "desktopName": "saturn-client.desktop"
+  "desktopName": "saturn.desktop"
 }
