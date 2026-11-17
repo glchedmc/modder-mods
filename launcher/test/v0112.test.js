@@ -116,7 +116,7 @@ test('Microsoft errors become readable messages, are logged, and never leak toke
   h.redirect('http://localhost/?error=access_denied&state=x');
   await tick();
   assert.equal(h.events[0].state, 'error');
-  assert.match(h.events[0].error, /declined/i);
+  assert.match(h.events[0].error, /access_denied/i);
   const log = fs.readFileSync(path.join(h.dir, 'auth.log'), 'utf8');
   assert.match(log, /sign-in: failed/);
   assert.ok(!/ABCD1234|THECODE/.test(log), 'no codes in the log');
