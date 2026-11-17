@@ -6,10 +6,10 @@ import { Switch, Range, Segmented, Sheet } from '../components/ui';
 import { BackgroundPicker } from '../components/backgrounds';
 import CompanionSettings from './CompanionSettings';
 import saturnIcon from '../../../build/icon.svg';
-import wireframeIcon from '../../../build/dock/wireframe.svg';
-import crystalIcon from '../../../build/dock/crystal.svg';
+import nightIcon from '../../../build/dock/night.svg';
+import dawnIcon from '../../../build/dock/dawn.svg';
 
-const APP_ICONS = [['saturn', 'Saturn', saturnIcon], ['wireframe', 'Wireframe', wireframeIcon], ['crystal', 'Crystal', crystalIcon]];
+const APP_ICONS = [['saturn', 'Saturn', saturnIcon], ['night', 'Night', nightIcon], ['dawn', 'Dawn', dawnIcon]];
 
 function MicRow({ app }) {
   const [mic, setMic] = useState(null);
@@ -17,7 +17,7 @@ function MicRow({ app }) {
   if (!mic) return null;
   return (
     <>
-      <div className="setting"><div className="label"><b title="Minecraft runs inside Saturn Client, so macOS asks once for the launcher.">Microphone access</b><span>{mic.hint} Minecraft uses the launcher's permission.</span></div>
+      <div className="setting"><div className="label"><b title="Minecraft runs inside Saturn, so macOS asks once for the launcher.">Microphone access</b><span>{mic.hint} Minecraft uses the launcher's permission.</span></div>
         <span className={`pill ${mic.tone}`} title="Voice chat mods use this permission"><Icon name="mic" size={11} />{mic.label}</span>
         {mic.status === 'not-determined' && <button className="btn primary sm" onClick={async () => setMic(await api.requestMic())}>Allow</button>}
         {(mic.status === 'denied' || mic.status === 'restricted') && <button className="btn sm" onClick={() => api.openMicSettings()}>Open System Settings</button>}
@@ -389,7 +389,7 @@ export default function Settings({ app }) {
 
         {section === 'about' && (
           <div className="group glass">
-            <div className="setting"><div className="label"><b>Saturn Client</b><span>Version {info.version} · {info.platform} {info.arch}</span></div></div>
+            <div className="setting"><div className="label"><b>Saturn</b><span>Version {info.version} · {info.platform} {info.arch}</span></div></div>
             <div className="setting"><div className="label"><b>Data folder</b><span>{info.dataDir}</span></div></div>
             <div className="setting"><div className="label"><b>Source</b><span>github.com/glchedmc/modder-mods/tree/glass-launcher/launcher</span></div></div>
             <div className="setting"><div className="label"><b>Not affiliated with Mojang or Microsoft.</b><span>Minecraft is a trademark of Mojang Synergies AB.</span></div></div>
