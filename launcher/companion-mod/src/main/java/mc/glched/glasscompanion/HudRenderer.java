@@ -3,6 +3,7 @@ package mc.glched.glasscompanion;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -53,7 +54,16 @@ public final class HudRenderer {
 		element("blockInfo", "Block info", 0.5f, 0.02f);
 		element("deathPoint", "Death point", 0.5f, 0.16f);
 		element("itemCounter", "Held item", 0.735f, 0.985f);
+		// Module overlays drawn by their own HUD layers (or by vanilla / Corner Atlas). Until moved they stay
+		// exactly where they always were; once moved they draw at the saved spot and scale (see anchor()).
+		element("effectTimers", "Effect timers", 1f, 0f);
+		element("echoRing", "Sound arrows", 0.5f, 0.5f);
+		element("subtitles", "Subtitles", 1f, 0.85f);
+		element("minimap", "Corner Atlas map", 0f, 0f);
 	}
+
+	/** Elements placed relative to another renderer's own spot: no global HUD scale until the user resizes them. */
+	public static final Set<String> ANCHORED = Set.of("effectTimers", "echoRing", "subtitles", "minimap");
 
 	private static void element(String id, String name, float fx, float fy) {
 		ELEMENTS.put(id, name);
@@ -70,7 +80,6 @@ public final class HudRenderer {
 	static void extract(GuiGraphicsExtractor g, DeltaTracker delta) {
 		Minecraft mc = Minecraft.getInstance();
 		LocalPlayer player = mc.player;
-		BOUNDS.clear();
 		if (player == null || mc.getDebugOverlay().showDebugScreen()) {
 			return;
 		}
@@ -231,9 +240,52 @@ public final class HudRenderer {
 		return lines;
 	}
 
-	/** Effective scale of one element: global HUD scale times its own editor scale. */
+	/** First HUD layer each frame: forget last frame's element bounds. */
+	public static void beginFrame(GuiGraphicsExtractor g, DeltaTracker delta) {
+		BOUNDS.clear();
+	}
+
+	/** Scale an element starts from before its own editor scale: the HUD scale, or 1 for anchored overlays. */
+	public static float baseScale(String id) {
+		return ANCHORED.contains(id) ? 1f : scale();
+	}
+
+	/** Effective scale of one element: its base scale times its own editor scale. */
 	public static float scaleOf(String id) {
-		return scale() * CompanionConfig.elementScale(id);
+		return baseScale(id) * CompanionConfig.elementScale(id);
+	}
+
+	/**
+	 * For overlays drawn by another layer at a fixed spot (defX, defY, w, h in GUI pixels).
+	 * Not moved yet: records those bounds for the editor and leaves drawing untouched (returns false).
+	 * Moved: pushes a pose that maps the default box onto the saved spot and scale, records the new
+	 * bounds and returns true; the caller pops the pose after drawing.
+	 */
+	public static boolean anchor(GuiGraphicsExtractor g, String id, int defX, int defY, int w, int h, boolean record) {
+		float[] f = CompanionConfig.layout(id);
+		if (f == null) {
+			if (record) {
+				BOUNDS.put(id, new int[] {defX, defY, w, h});
+			}
+			return false;
+		}
+		float s = scaleOf(id);
+		int[] p = position(f, w, h, g.guiWidth(), g.guiHeight(), s);
+		Matrix3x2fStack pose = g.pose();
+		pose.pushMatrix();
+		pose.scale(s, s);
+		pose.translate(p[0] - defX, p[1] - defY);
+		if (record) {
+			BOUNDS.put(id, new int[] {Math.round(p[0] * s), Math.round(p[1] * s), Math.round(w * s), Math.round(h * s)});
+		}
+		return true;
+	}
+
+	/** Top-left (in element units) for saved fractions f of an element w×h drawn at scale s on a guiW×guiH screen. */
+	public static int[] position(float[] f, int w, int h, int guiW, int guiH, float s) {
+		int screenW = (int) (guiW / s);
+		int screenH = (int) (guiH / s);
+		return new int[] {Math.round(2 + f[0] * Math.max(0, screenW - w - 4)), Math.round(2 + f[1] * Math.max(0, screenH - h - 4))};
 	}
 
 	/**
@@ -243,14 +295,13 @@ public final class HudRenderer {
 	 */
 	private static void place(GuiGraphicsExtractor g, String id, int unusedW, int unusedH, int w, int h, float unusedScale, BiConsumer<Integer, Integer> draw) {
 		float s = scaleOf(id);
-		int screenW = (int) (g.guiWidth() / s);
-		int screenH = (int) (g.guiHeight() / s);
 		float[] f = CompanionConfig.layout(id);
 		if (f == null) {
 			f = DEFAULTS.get(id);
 		}
-		int x = Math.round(2 + f[0] * Math.max(0, screenW - w - 4));
-		int y = Math.round(2 + f[1] * Math.max(0, screenH - h - 4));
+		int[] p = position(f, w, h, g.guiWidth(), g.guiHeight(), s);
+		int x = p[0];
+		int y = p[1];
 		Matrix3x2fStack pose = g.pose();
 		pose.pushMatrix();
 		pose.scale(s, s);
@@ -263,14 +314,14 @@ public final class HudRenderer {
 	 * Converts an on-screen top-left (GUI pixels) into saved fractions for an
 	 * element whose on-screen size is w×h at scale s.
 	 */
-	public static float[] toFractions(int guiX, int guiY, int w, int h, int guiW, int guiH, float s) {
+	public static float[] toFractions(String id, int guiX, int guiY, int w, int h, int guiW, int guiH, float s) {
 		float sw = guiW / s;
 		float sh = guiH / s;
 		float ew = w / s;
 		float eh = h / s;
 		float fx = (guiX / s - 2) / Math.max(1f, sw - ew - 4);
 		float fy = (guiY / s - 2) / Math.max(1f, sh - eh - 4);
-		return new float[] {Math.max(0, Math.min(1, fx)), Math.max(0, Math.min(1, fy)), s / scale()};
+		return new float[] {Math.max(0, Math.min(1, fx)), Math.max(0, Math.min(1, fy)), s / baseScale(id)};
 	}
 
 	/**

@@ -76,6 +76,7 @@ public final class GlassCompanion implements ClientModInitializer {
 				"key.glass-companion.chunks", InputConstants.Type.KEYBOARD, InputConstants.KEY_F7, category));
 		WaypointKeys.register(category);
 
+		HudElementRegistry.addFirst(id("hud_begin"), HudRenderer::beginFrame);
 		HudElementRegistry.addLast(id("hud"), HudRenderer::extract);
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, vanilla -> (HudElement) (graphics, delta) -> {
 			if (CompanionConfig.bool("customCrosshair")) {
@@ -86,6 +87,12 @@ public final class GlassCompanion implements ClientModInitializer {
 		});
 		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, vanilla -> (HudElement) (graphics, delta) -> {
 			if (!CompanionConfig.bool("hideScoreboard")) {
+				vanilla.extractRenderState(graphics, delta);
+			}
+		});
+		// Once the effect-timer panel is moved in the HUD editor, Saturn draws the icons there instead.
+		HudElementRegistry.replaceElement(VanillaHudElements.MOB_EFFECTS, vanilla -> (HudElement) (graphics, delta) -> {
+			if (!EffectTimers.replacesVanilla()) {
 				vanilla.extractRenderState(graphics, delta);
 			}
 		});
@@ -104,7 +111,10 @@ public final class GlassCompanion implements ClientModInitializer {
 				return;
 			}
 			try {
-				HudElementRegistry.attachElementAfter(Identifier.fromNamespaceAndPath("corner-atlas", "minimap"), id("waypoint_minimap"), WaypointRenderer::extractMinimap);
+				Identifier atlas = Identifier.fromNamespaceAndPath("corner-atlas", "minimap");
+				// The Corner Atlas map becomes a movable HUD element (its own mod is untouched: Saturn moves the layer).
+				HudElementRegistry.replaceElement(atlas, map -> (HudElement) (graphics, delta) -> MinimapBridge.drawMoved(graphics, () -> map.extractRenderState(graphics, delta)));
+				HudElementRegistry.attachElementAfter(atlas, id("waypoint_minimap"), WaypointRenderer::extractMinimap);
 			} catch (RuntimeException ex) {
 				HudElementRegistry.addLast(id("waypoint_minimap"), WaypointRenderer::extractMinimap);
 			}

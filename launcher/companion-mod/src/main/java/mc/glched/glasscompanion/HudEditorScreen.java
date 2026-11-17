@@ -95,7 +95,7 @@ public final class HudEditorScreen extends Screen {
 		g.centeredText(font, "Edit HUD", width / 2, height / 2 - 26, 0xFFFFFFFF);
 		g.centeredText(font, "Drag to move · drag a corner or scroll to resize", width / 2, height / 2 - 12, 0xB0D0D8F5);
 		g.centeredText(font, "Right-click resets an element", width / 2, height / 2, 0xB0D0D8F5);
-		g.centeredText(font, "Turn elements on in Saturn mods", width / 2, height / 2 + 12, 0x80D0D8F5);
+		g.centeredText(font, "Module overlays show when their module is on", width / 2, height / 2 + 12, 0x80D0D8F5);
 		super.extractRenderState(g, mouseX, mouseY, partial);
 	}
 
@@ -190,7 +190,7 @@ public final class HudEditorScreen extends Screen {
 			if (Math.abs(ny + b[3] / 2 - height / 2) < 4) {
 				ny = height / 2 - b[3] / 2;
 			}
-			CompanionConfig.setLayout(dragging, HudRenderer.toFractions(nx, ny, b[2], b[3], width, height, HudRenderer.scaleOf(dragging)));
+			CompanionConfig.setLayout(dragging, HudRenderer.toFractions(dragging, nx, ny, b[2], b[3], width, height, HudRenderer.scaleOf(dragging)));
 			return true;
 		}
 		return super.mouseDragged(event, dx, dy);
@@ -210,7 +210,7 @@ public final class HudEditorScreen extends Screen {
 	}
 
 	private void applyScale(String id, float target, int[] b, double ax, double ay, boolean left, boolean top) {
-		float global = HudRenderer.scale();
+		float global = HudRenderer.baseScale(id);
 		float es = Math.max(CompanionConfig.MIN_ELEMENT_SCALE, Math.min(CompanionConfig.MAX_ELEMENT_SCALE, target / global));
 		// Snap near 100%.
 		if (Math.abs(es - 1f) < 0.04f) {
@@ -222,7 +222,7 @@ public final class HudEditorScreen extends Screen {
 		int nh = (int) Math.round(b[3] * ratio);
 		int nx = (int) Math.round(left ? ax - nw : ax);
 		int ny = (int) Math.round(top ? ay - nh : ay);
-		float[] f = HudRenderer.toFractions(nx, ny, nw, nh, width, height, s);
+		float[] f = HudRenderer.toFractions(id, nx, ny, nw, nh, width, height, s);
 		CompanionConfig.setLayout(id, new float[] {f[0], f[1], es});
 	}
 
@@ -243,7 +243,7 @@ public final class HudEditorScreen extends Screen {
 	}
 
 	private void applyScaleCentered(String id, float target, int[] b, double cx, double cy) {
-		float global = HudRenderer.scale();
+		float global = HudRenderer.baseScale(id);
 		float es = Math.max(CompanionConfig.MIN_ELEMENT_SCALE, Math.min(CompanionConfig.MAX_ELEMENT_SCALE, target / global));
 		if (Math.abs(es - 1f) < 0.04f) {
 			es = 1f;
@@ -252,7 +252,7 @@ public final class HudEditorScreen extends Screen {
 		double ratio = s / (double) HudRenderer.scaleOf(id);
 		int nw = (int) Math.round(b[2] * ratio);
 		int nh = (int) Math.round(b[3] * ratio);
-		float[] f = HudRenderer.toFractions((int) Math.round(cx - nw / 2.0), (int) Math.round(cy - nh / 2.0), nw, nh, width, height, s);
+		float[] f = HudRenderer.toFractions(id, (int) Math.round(cx - nw / 2.0), (int) Math.round(cy - nh / 2.0), nw, nh, width, height, s);
 		CompanionConfig.setLayout(id, new float[] {f[0], f[1], es});
 	}
 
