@@ -70,5 +70,5 @@ export function iconSvg(name = 'saturn') {
 export function logoSvg() {
   const t = THEMES.saturn;
   const p = planetGroup(t);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="90 190 844 700"><defs>${p.defs}</defs>${p.back}${p.front === undefined ? '' : ''}${p.body}${p.front}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="90 190 844 700"><defs>${p.defs}</defs>${p.back}${p.body}${p.front}</svg>`;
 }

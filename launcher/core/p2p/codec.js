@@ -22,7 +22,7 @@ function decode(code, expect) {
   if (!clean) throw new Error('Paste a code first.');
   if (clean.length > MAX_CODE) throw new Error('That code is too long.');
   const kind = clean.startsWith(PREFIX.offer) ? 'offer' : clean.startsWith(PREFIX.answer) ? 'answer' : null;
-  if (!kind) throw new Error('That is not a Saturn Client invite or reply code.');
+  if (!kind) throw new Error('That is not a Saturn invite or reply code.');
   if (expect && kind !== expect) throw new Error(expect === 'offer' ? 'That is a reply code. Paste the invite code your friend sent you.' : 'That is an invite code. Paste the reply code your friend sent back.');
   let obj;
   try {
@@ -30,7 +30,7 @@ function decode(code, expect) {
   } catch {
     throw new Error('That code is incomplete or damaged. Copy it again in full.');
   }
-  if (!obj || obj.v !== VERSION || !/^v=0/.test(String(obj.s || ''))) throw new Error('That code is from a different Saturn Client version.');
+  if (!obj || obj.v !== VERSION || !/^v=0/.test(String(obj.s || ''))) throw new Error('That code is from a different Saturn version.');
   return { kind, sdp: obj.s, ...(obj.m || {}) };
 }
 

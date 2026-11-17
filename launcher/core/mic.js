@@ -1,5 +1,5 @@
 'use strict';
-// Microphone permission (macOS). Java is launched as a child of Saturn Client,
+// Microphone permission (macOS). Java is launched as a child of Saturn,
 // so macOS attributes its microphone use to the launcher: once the launcher has
 // access, Simple Voice Chat inside the game can record.
 const STATES = {
