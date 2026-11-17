@@ -1,75 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Saturn logo mark on transparency (no squircle background), for the in-game title screen. From the app icon: ice-blue wireframe cube (concept 1) holding a faceted crystal (concept 3) on a light glass squircle, circled by a Saturn-style glass ring. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
-      <stop offset="0" stop-color="#e3ecff"/>
-      <stop offset="0.42" stop-color="#9fb2ef"/>
-      <stop offset="1" stop-color="#5b4fb4"/>
-    </linearGradient>
-    <radialGradient id="halo" cx="0.5" cy="0.52" r="0.42">
-      <stop offset="0" stop-color="#bfe9ff" stop-opacity="0.75"/>
-      <stop offset="0.6" stop-color="#9ad4ff" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#9ad4ff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
-      <stop offset="0.38" stop-color="#fff" stop-opacity="0.06"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0.16"/>
-    </linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="0.45" stop-color="#6fd6ff"/>
-      <stop offset="1" stop-color="#a796ff"/>
-    </linearGradient>
-    <linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#8fd0ff"/></linearGradient>
-    <linearGradient id="c2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6d2ff"/><stop offset="1" stop-color="#6f7ff5"/></linearGradient>
-    <linearGradient id="c3" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd6ee"/><stop offset="1" stop-color="#86c4ff"/></linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="12" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#241a66" flood-opacity="0.42"/>
-    </filter>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
-      <stop offset="0.35" stop-color="#9fe3ff" stop-opacity="0.95"/>
-      <stop offset="0.7" stop-color="#c7b6ff" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0.85"/>
-    </linearGradient>
-    <clipPath id="ringBack"><rect x="-500" y="-300" width="1000" height="300"/></clipPath>
-    <clipPath id="ringFront"><rect x="-500" y="0" width="1000" height="300"/></clipPath>
-    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
-  </defs>
-  <g transform="translate(512 512) scale(1.18) translate(-512 -540)">
-    <!-- Saturn ring, back half -->
-    <g transform="translate(512 548) rotate(-16)" clip-path="url(#ringBack)" fill="none" opacity="0.7">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="90 190 844 700"><defs>
+    <radialGradient id="pl" cx="0.35" cy="0.3" r="0.85"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#b8c6ff"/><stop offset="1" stop-color="#6f5fd0"/></radialGradient>
+    <radialGradient id="pshade" cx="0.7" cy="0.75" r="0.7"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#241a66" stop-opacity="0.45"/></radialGradient>
+    <clipPath id="pc"><circle cx="0" cy="0" r="205"/></clipPath>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="0.35" stop-color="#9fe3ff" stop-opacity="0.95"/><stop offset="0.7" stop-color="#c7b6ff" stop-opacity="0.9"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.85"/></linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#241a66" flood-opacity="0.42"/></filter>
+    <clipPath id="rb"><rect x="-500" y="-300" width="1000" height="300"/></clipPath>
+    <clipPath id="rf"><rect x="-500" y="0" width="1000" height="300"/></clipPath></defs><g transform="translate(512 548) rotate(-16)" clip-path="url(#rb)" fill="none" opacity="0.75">
       <ellipse rx="372" ry="96" stroke="#e8f6ff" stroke-opacity="0.22" stroke-width="44"/>
       <ellipse rx="372" ry="96" stroke="url(#ring)" stroke-width="10" filter="url(#glow)"/>
-      <ellipse rx="340" ry="80" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3"/>
-    </g>
-    <!-- inner wireframe edges (behind the crystal) -->
-    <g transform="translate(512 540)" stroke="url(#edge)" stroke-width="9" stroke-opacity="0.8" stroke-linejoin="round" stroke-linecap="round" fill="none" filter="url(#glow)">
-      <path d="M-220 -120 L0 0 L220 -120 M0 0 L0 260"/>
-    </g>
-    <!-- crystal inside the cube -->
-    <g filter="url(#s)" transform="translate(512 538) scale(0.62)">
-      <polygon points="0,-230 210,20 80,230 -80,230 -210,20" fill="url(#c2)" opacity="0.96"/>
-      <polygon points="0,-230 210,20 0,90" fill="url(#c1)"/>
-      <polygon points="0,-230 -210,20 0,90" fill="url(#c3)" opacity="0.92"/>
-      <polygon points="0,90 210,20 80,230" fill="#5f7ce0" opacity="0.55"/>
-      <polygon points="0,90 -210,20 -80,230" fill="#5465c2" opacity="0.5"/>
-      <path d="M0 -230 L210 20 L80 230 L-80 230 L-210 20 Z" fill="none" stroke="#fff" stroke-opacity="0.75" stroke-width="7"/>
-    </g>
-    <!-- front wireframe cube, glowing ice-blue -->
-    <g transform="translate(512 540)" stroke="url(#edge)" stroke-width="15" stroke-linejoin="round" stroke-linecap="round" fill="none" filter="url(#glow)">
-      <path d="M0 -240 L220 -120 L220 140 L0 260 L-220 140 L-220 -120 Z"/>
-    </g>
-    <!-- Saturn ring, front half -->
-    <g transform="translate(512 548) rotate(-16)" clip-path="url(#ringFront)" fill="none" opacity="1">
+      <ellipse rx="340" ry="80" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3"/></g><g transform="translate(512 540)" filter="url(#sh)">
+      <circle r="205" fill="url(#pl)"/>
+      <g clip-path="url(#pc)" transform="rotate(-16)">
+        <rect x="-220" y="-110" width="440" height="34" fill="#ffffff" opacity="0.22"/>
+        <rect x="-220" y="-40" width="440" height="22" fill="#ffffff" opacity="0.16"/>
+        <rect x="-220" y="60" width="440" height="40" fill="#ffffff" opacity="0.14"/>
+      </g>
+      <circle r="205" fill="url(#pshade)"/>
+      <ellipse cx="-70" cy="-95" rx="95" ry="52" transform="rotate(-30 -70 -95)" fill="#fff" opacity="0.28"/>
+      <circle r="205" fill="none" stroke="#fff" stroke-opacity="0.7" stroke-width="5"/></g><g transform="translate(512 548) rotate(-16)" clip-path="url(#rf)" fill="none">
       <ellipse rx="372" ry="96" stroke="#e8f6ff" stroke-opacity="0.22" stroke-width="44"/>
       <ellipse rx="372" ry="96" stroke="url(#ring)" stroke-width="10" filter="url(#glow)"/>
-      <ellipse rx="340" ry="80" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3"/>
-    </g>
-  </g>
-</svg>
+      <ellipse rx="340" ry="80" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3"/></g></svg>
