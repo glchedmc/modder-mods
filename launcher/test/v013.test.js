@@ -292,7 +292,7 @@ test('icons: icns writer and Saturn branding in package.json', async () => {
   assert.deepEqual(entries.map((e) => e[0]), ['icp4', 'ic10']);
   assert.equal(icns.readUInt32BE(4), icns.length);
   const pkg = require('../package.json');
-  assert.equal(pkg.productName, 'Saturn Client');
+  assert.equal(pkg.productName, 'Saturn');
   assert.equal(pkg.build.appId, 'com.glchedmc.saturnclient');
   assert.match(pkg.build.mac.extendInfo.NSMicrophoneUsageDescription, /voice chat/i);
   assert.equal(pkg.build.mac.icon, 'build/icon.icns');
