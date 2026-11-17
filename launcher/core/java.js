@@ -5,6 +5,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const { download, exists, fetchJson } = require('./net');
+const { ensureExecutable, clearQuarantine } = require('./launch-log');
 
 const run = promisify(execFile);
 
@@ -91,6 +92,8 @@ async function installJava(dirs, major, platform, { imageType = 'jdk', onStatus 
   }
   const bin = await javaBinIn(target, platform);
   if (!bin) throw new Error('Java extracted but no java binary found');
+  await ensureExecutable(bin).catch(() => {});
+  await clearQuarantine([target], platform).catch(() => {});
   return bin;
 }
 

@@ -8,7 +8,7 @@ const defaultLoopback = require('./loopback');
 const FRIENDLY = [
   [/fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|socket/i, 'Saturn couldn’t reach Microsoft. Check your internet connection (or VPN/firewall) and try again.'],
   [/expired/i, 'The sign-in code expired. Start again to get a new one.'],
-  [/declined|access_denied/i, 'Sign-in was declined. Start again if that was a mistake.'],
+  [/declined/i, 'Sign-in was declined. Start again if that was a mistake.'],
   [/redirect_uri|not registered|AADSTS50011/i, 'Microsoft rejected this app’s sign-in address. Use “Use a code instead” below, and send the log so it can be fixed.'],
   [/AADSTS70000|consent|unauthorized_client|invalid_client/i, 'Microsoft didn’t accept this app’s sign-in settings. Use “Use a code instead” below, and send the log.'],
 ];
@@ -16,7 +16,7 @@ const FRIENDLY = [
 function friendly(e) {
   if (e && e.code === 'APP_NOT_APPROVED') return 'Microsoft sign-in is waiting on Mojang approval for this app.';
   if (e && e.code) {
-    if (['NO_CLIENT_ID', 'NO_PROFILE'].includes(e.code)) return e.message;
+    if (['NO_CLIENT_ID', 'NO_PROFILE', 'ACCESS_DENIED'].includes(e.code)) return e.message;
   }
   const msg = (e && e.message) || String(e);
   for (const [re, text] of FRIENDLY) if (re.test(msg)) return text;
@@ -131,7 +131,12 @@ class SignInManager {
         }
         const r = this.msa.parseRedirect(returned, pk.state);
         if (r.error) {
-          const e = new Error(r.error === 'access_denied' ? 'Sign-in was declined.' : `Microsoft sign-in failed: ${r.description || r.error}`);
+          // Log exactly what Microsoft said (error + description are not secrets) so a refusal can be diagnosed.
+          this.log.warn(`sign-in: Microsoft returned error=${r.error}${r.description ? ` description="${String(r.description).slice(0, 300)}"` : ''} (${session.method})`);
+          const denied = r.error === 'access_denied';
+          const e = new Error(denied
+            ? `Microsoft ended the sign-in without a code (access_denied${r.description ? `: ${String(r.description).slice(0, 160)}` : ''}). This usually means Cancel or the close button was pressed on Microsoft’s page. Try again, or use “Use my browser instead”.`
+            : `Microsoft sign-in failed: ${r.description || r.error}`);
           e.code = r.error.toUpperCase();
           throw e;
         }

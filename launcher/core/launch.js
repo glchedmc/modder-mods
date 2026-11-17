@@ -100,9 +100,12 @@ function buildLaunch({ dirs, version, instance, instanceDir, account, platform, 
     ? flattenArgs(version.arguments['default-user-jvm'], platform, feats).filter((a) => !/^-Xm[sx]/.test(a))
     : [];
   const custom = (instance.jvmArgs || '').split(/\s+/).filter(Boolean);
+  // macOS: LWJGL/GLFW must own the first thread. Mojang's JSON adds this for most versions; make sure it's never missing.
+  const jvmOut = jvm.map((a) => substitute(a, vars)).map((a) => a.trim());
+  if (platform.name === 'osx' && !jvmOut.includes('-XstartOnFirstThread') && !custom.includes('-XstartOnFirstThread')) jvmOut.unshift('-XstartOnFirstThread');
   const args = [
     ...user, ...defaultsUser, ...custom,
-    ...jvm.map((a) => substitute(a, vars)).map((a) => a.trim()),
+    ...jvmOut,
     version.mainClass,
     ...game.map((a) => substitute(a, vars)),
   ];
@@ -150,8 +153,17 @@ async function prepare({ dirs, instance, instanceDir, account, platform, javaPat
   return { spec, version };
 }
 
-function start(spec, { onLine, onExit } = {}) {
-  const child = spawn(spec.java, spec.args, { cwd: spec.cwd, detached: false, stdio: ['ignore', 'pipe', 'pipe'] });
+function start(spec, { onLine, onExit, onError } = {}) {
+  const env = { ...process.env };
+  delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS; // never let the launcher's own runtime flags leak into Java
+  const child = spawn(spec.java, spec.args, { cwd: spec.cwd, detached: false, stdio: ['ignore', 'pipe', 'pipe'], env });
+  // Resolves when the process really exists, rejects when it can't be spawned (missing/!exec binary, bad cwd, wrong CPU).
+  child.ready = new Promise((resolve, reject) => {
+    child.once('spawn', resolve);
+    child.once('error', reject);
+  });
+  child.ready.catch(() => {});
+  child.on('error', (e) => { if (onError) onError(e); });
   const pipe = (stream) => {
     let buf = '';
     stream.on('data', (d) => {
@@ -159,9 +171,13 @@ function start(spec, { onLine, onExit } = {}) {
       let i;
       while ((i = buf.indexOf('\n')) !== -1) { if (onLine) onLine(buf.slice(0, i)); buf = buf.slice(i + 1); }
     });
+    stream.on('end', () => { if (buf && onLine) onLine(buf); buf = ''; });
   };
   pipe(child.stdout); pipe(child.stderr);
-  child.on('exit', (code) => onExit && onExit(code));
+  let exited = false;
+  const fin = (code, signal) => { if (!exited) { exited = true; if (onExit) onExit(code, signal); } };
+  child.on('exit', fin);
+  child.on('error', () => fin(null, 'spawn-error'));
   return child;
 }
 
