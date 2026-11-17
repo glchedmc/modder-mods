@@ -1,6 +1,6 @@
-# Saturn Client
+# Saturn
 
-Saturn Client (formerly Glass Launcher) is a macOS and Linux Minecraft Java launcher with a liquid-glass UI, built-in mod browser (Modrinth + CurseForge),
+Saturn (formerly Saturn Client, and before that Glass Launcher) is a macOS and Linux Minecraft Java launcher with a liquid-glass UI, built-in mod browser (Modrinth + CurseForge),
 a Lunar-style companion mod, and **Grok Studio**: one-click "Upgrade to 26.3" ports of mods that have no 26.3 build.
 
 Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2+26.3 · Loom 1.19.3 · Gradle 9.8.2 · Java 25.
@@ -9,25 +9,39 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.12-arm64.tar.xz` (Apple silicon; double-click to extract).
-2. Drag **Saturn Client.app** into `/Applications`.
+1. Extract `Saturn-0.1.13-arm64.tar.xz` (Apple silicon; double-click to extract).
+2. Drag **Saturn.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
 4. If macOS says the app is "damaged", clear the quarantine flag:
-   `xattr -dr com.apple.quarantine "/Applications/Saturn Client.app"`
+   `xattr -cr /Applications/Saturn.app`
+
+## Saturn (0.1.13)
+
+The launcher is now just **Saturn**: new app name (Saturn.app, `Saturn-<version>-…` downloads) and a planet-and-ring icon (the cube and crystal are gone from the app icon, the sidebar and the in-game title screen).
+Your data does not move: it stays in `~/Library/Application Support/Saturn Client` (Linux: `~/.config/Saturn Client`), so your sign-in and instances carry over. Logs are now in `~/Library/Logs/Saturn/`.
+
+## Game won't start? (0.1.13)
+
+Every launch is logged. On macOS look in `~/Library/Logs/Saturn/`:
+
+- `main.log`: one line per launch step (instance, version, Java path and architecture, command without tokens, pid, exit code).
+- `launches/<instance>-<date>.log`: everything Minecraft printed for that launch. The **Show log** button on the error banner/toast opens it.
+
+Play only starts game (client) instances. Dedicated servers are started from the Host page.
 
 ## Installing on Linux (x64)
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.12-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.12-x86_64.AppImage && ./SaturnClient-0.1.12-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./Saturn-0.1.13-amd64.deb`, then open Saturn from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x Saturn-0.1.13-x86_64.AppImage && ./Saturn-0.1.13-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
-- **tar.gz**: extract anywhere and run `./saturn-client`.
+- **tar.gz**: extract anywhere and run `./saturn`.
 
 Notes:
 - Keys are encrypted with the desktop keyring (GNOME Keyring / KWallet via libsecret). With no keyring the app falls back to a
-  private `0600` file in `~/.config/Saturn Client` and Settings → Accounts & Keys says so. Install `gnome-keyring` for encrypted storage.
+  private `0600` file in `~/.config/Saturn Client` (the data folder keeps its old name so existing installs keep their sign-in and instances) and Settings → Accounts & Keys says so. Install `gnome-keyring` for encrypted storage.
 - Java is downloaded automatically (Adoptium). Settings → Java → Detect also finds system JDKs in `/usr/lib/jvm`, `/opt`, `~/.jdks` and SDKMAN.
 - Linux has no microphone prompt: PipeWire/PulseAudio give apps the mic directly. Settings → Voice & Mic → Sound settings opens your mixer.
 - If panels feel slow on older GPUs or under a VM, turn **Settings → Appearance → Glass strength** down (0 = solid, no blur). Linux defaults to Medium.
@@ -60,7 +74,7 @@ The flow is device code → Xbox Live → XSTS → Minecraft services → entitl
 - **Sign in** opens a Microsoft login window inside Saturn (the normal account picker and password page). When you finish, Saturn catches Microsoft's redirect, closes the window and signs you in. It uses the standard authorization-code flow with PKCE and the app's registered `http://localhost` redirect; no local server is needed for the window.
 - Small fallback links under the dialog: **Use my browser instead** (default browser, one-shot localhost catcher on a free port) and **Use a code instead** (microsoft.com/link with a Copy button, an Open in browser button, and a countdown).
 - **Fixed:** the old dialog never opened a browser (it only displayed a code) and it requested a brand-new code every time the Settings page re-rendered, cancelling the previous one and flashing a "Sign-in cancelled" error. Starting is now guarded, duplicate clicks are ignored, closing the window is a quiet cancel, and failures show a readable message with Try again and Show log.
-- **Log for support:** sign-in steps and errors are written to `auth.log` (tokens and codes are redacted). macOS: `~/Library/Logs/Saturn Client/auth.log`; Linux: `~/.config/Saturn Client/logs/auth.log`. Settings → Accounts & Keys → Sign in → Show log reveals it. Uncaught errors go to `main.log` beside it.
+- **Log for support:** sign-in steps and errors are written to `auth.log` (tokens and codes are redacted). macOS: `~/Library/Logs/Saturn/auth.log`; Linux: `~/.config/Saturn Client/logs/auth.log`. Settings → Accounts & Keys → Sign in → Show log reveals it. Uncaught errors go to `main.log` beside it.
 
 ## What's new in 0.1.11: every built-in mod's on-screen text is movable
 
@@ -76,10 +90,10 @@ In the HUD editor (Right Shift) these overlays now behave like the rest of the H
 - The collapsed (icons-only) sidebar is wider on Mac (84px), so the three buttons fit inside it with room on both sides; the sidebar toggle stays well clear of them, including when the sidebar is fully hidden.
 - Linux keeps its own window controls unchanged.
 
-**macOS says "Saturn Client is damaged" or "can't be opened"?** The build isn't notarized, so macOS quarantines the download. After moving the app to Applications, run this once in Terminal, then open it again:
+**macOS says "Saturn is damaged" or "can't be opened"?** The build isn't notarized, so macOS quarantines the download. After moving the app to Applications, run this once in Terminal, then open it again:
 
 ```
-xattr -dr com.apple.quarantine "/Applications/Saturn Client.app"
+xattr -cr /Applications/Saturn.app
 ```
 
 ## What's new in 0.1.9: no-violence filter for the Games tab
@@ -206,14 +220,14 @@ Privacy and limits:
 
 ## What's new in 0.1.3
 
-- **Renamed to Saturn Client** (bundle id `com.glchedmc.saturnclient`). On first launch, data in
+- **Renamed to Saturn Client, later just Saturn** (bundle id `com.glchedmc.saturnclient`). On first launch, data in
   `~/Library/Application Support/Glass Launcher` moves to `~/Library/Application Support/Saturn Client`.
   The Keychain entry is new, so re-enter any API keys you had saved (the old encrypted file is kept as `secrets-legacy.bin`).
 - **New icon:** the wireframe cube and faceted crystal with a glass Saturn ring. Settings → Appearance → Dock icon also offers
   the Wireframe and Crystal versions (changes the Dock icon while the app runs).
 - **Microphone for voice chat:** `NSMicrophoneUsageDescription` and the `com.apple.security.device.audio-input` entitlement.
   The app asks once on first launch; Settings → Voice & Mic shows the status, re-asks, or opens System Settings.
-  Minecraft runs as a child of Saturn Client, so Simple Voice Chat uses the launcher's permission. One-click Simple Voice Chat install.
+  Minecraft runs as a child of Saturn, so Simple Voice Chat uses the launcher's permission. One-click Simple Voice Chat install.
 - **Rename mods:** pencil (or double-click) in an instance's mod list. The name is stored in `instance.json`; "Rename file too"
   renames the jar safely (same folder and extension, no overwrite, `.disabled` kept). Undo from the toast; Reset restores the original name and file.
 - **Collapsible sidebar:** toolbar button or ⌘\. Collapsed shows icons only or nothing (Settings → Appearance). Remembered.
@@ -221,7 +235,7 @@ Privacy and limits:
   "Wear in game" (the companion mod shows your library skin to you) and Apply to account (needs Microsoft sign-in).
 - **AI skins:** Grok (`grok-imagine-image-2.0`) or ChatGPT (`gpt-image-1`) with your own API key (Keychain). Character mode asks for a
   front-view character and maps it onto the 64×64 layout; sheet mode (beta) asks for a skin sheet. Output is normalized to valid skin alpha rules.
-- **Cosmetics:** six Saturn capes plus your own 64×32 capes, rendered in game by Saturn Client Companion 0.1.1 for you only.
+- **Cosmetics:** six Saturn capes plus your own 64×32 capes, rendered in game by Saturn Companion 0.1.1 for you only.
   Hats and wings preview in the launcher. Other players don't see Saturn cosmetics (no shared cosmetics server yet).
 - **Host World:** installs [e4mc](https://modrinth.com/mod/e4mc) (has 26.3 builds), launches the instance, and shows the public
   `*.e4mc.link` address from the game log after you Open to LAN. Paper/Purpur instances show LAN addresses and the port to forward.
@@ -242,7 +256,7 @@ Privacy and limits:
   (`grok-4.7`, Responses API) to port it to official Mojang names on Fabric 26.3, builds it with Gradle, sends
   compiler errors back to Grok (up to 5 attempts by default), then installs `*-grok.jar` and disables the old jar.
   Progress and the full log are streamed to the UI.
-- **Saturn Client Companion mod** (Fabric 26.3, bundled): 36 toggleable QoL features in 6 groups (HUD, visuals,
+- **Saturn Companion mod** (Fabric 26.3, bundled): 36 toggleable QoL features in 6 groups (HUD, visuals,
   crosshair, tooltips, movement, performance), including compact tooltips, FPS/coords/armor/CPS HUDs, zoom,
   fullbright, toggle sprint/sneak and a custom crosshair. Every feature can be toggled in the launcher and in-game
   (**Right Shift**). Both write the same `config/glass-companion.json` file.
