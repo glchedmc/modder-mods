@@ -239,6 +239,8 @@ const shots = [
     await p.waitForSelector('.hero');
     await p.click('.sidebar-toggle'); await p.waitForTimeout(1000); await macLights(p);
   }],
+  ['66-signin-window', '#/settings?section=keys', async (p) => { await p.getByRole('button', { name: 'Sign in' }).click(); await p.waitForSelector('.signin-sheet'); await p.waitForTimeout(900); }],
+  ['67-signin-code-fallback', '#/settings?section=keys', async (p) => { await p.getByRole('button', { name: 'Sign in' }).click(); await p.waitForSelector('.signin-sheet'); await p.getByText('Use a code instead').click(); await p.waitForSelector('.signin-code'); await p.waitForTimeout(700); }],
   ['40-friends-settings', '#/settings?section=friends', async (p) => { await p.waitForSelector('.relay-status'); await p.waitForTimeout(600); }, { width: 1360, height: 1000 }],
 ];
 

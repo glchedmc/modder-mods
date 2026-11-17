@@ -9,7 +9,7 @@ Default target: **Minecraft 26.3** · Fabric Loader 0.20.1 · Fabric API 0.165.2
 
 The app is not signed or notarized, so Gatekeeper will block a double-click the first time.
 
-1. Extract `SaturnClient-0.1.11-arm64.tar.xz` (Apple silicon; double-click to extract).
+1. Extract `SaturnClient-0.1.12-arm64.tar.xz` (Apple silicon; double-click to extract).
 2. Drag **Saturn Client.app** into `/Applications`.
 3. **Right-click (Control-click) the app → Open → Open.** On recent macOS versions you may instead need
    System Settings → Privacy & Security → "Open Anyway".
@@ -20,8 +20,8 @@ The app is not signed or notarized, so Gatekeeper will block a double-click the 
 
 Three builds, same app:
 
-- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.11-amd64.deb`, then open Saturn Client from the app menu.
-- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.11-x86_64.AppImage && ./SaturnClient-0.1.11-x86_64.AppImage`.
+- **.deb** (Ubuntu, Debian, Mint, Pop!_OS): `sudo apt install ./SaturnClient-0.1.12-amd64.deb`, then open Saturn Client from the app menu.
+- **AppImage** (any distro, built with `npm run dist:linux`): `chmod +x SaturnClient-0.1.12-x86_64.AppImage && ./SaturnClient-0.1.12-x86_64.AppImage`.
   If it complains about FUSE, install `libfuse2` (Ubuntu 24.04: `sudo apt install libfuse2t64`) or run it with `--appimage-extract-and-run`.
 - **tar.gz**: extract anywhere and run `./saturn-client`.
 
@@ -54,6 +54,13 @@ To use a different Azure app: register one at https://portal.azure.com → Micro
 (Personal Microsoft accounts only, Allow public client flows = Yes) and paste the Application (client) ID into Settings.
 
 The flow is device code → Xbox Live → XSTS → Minecraft services → entitlement and profile check. Tokens are kept in the secret store.
+
+## What's new in 0.1.12: Microsoft sign-in that works like the official launcher
+
+- **Sign in** opens a Microsoft login window inside Saturn (the normal account picker and password page). When you finish, Saturn catches Microsoft's redirect, closes the window and signs you in. It uses the standard authorization-code flow with PKCE and the app's registered `http://localhost` redirect; no local server is needed for the window.
+- Small fallback links under the dialog: **Use my browser instead** (default browser, one-shot localhost catcher on a free port) and **Use a code instead** (microsoft.com/link with a Copy button, an Open in browser button, and a countdown).
+- **Fixed:** the old dialog never opened a browser (it only displayed a code) and it requested a brand-new code every time the Settings page re-rendered, cancelling the previous one and flashing a "Sign-in cancelled" error. Starting is now guarded, duplicate clicks are ignored, closing the window is a quiet cancel, and failures show a readable message with Try again and Show log.
+- **Log for support:** sign-in steps and errors are written to `auth.log` (tokens and codes are redacted). macOS: `~/Library/Logs/Saturn Client/auth.log`; Linux: `~/.config/Saturn Client/logs/auth.log`. Settings → Accounts & Keys → Sign in → Show log reveals it. Uncaught errors go to `main.log` beside it.
 
 ## What's new in 0.1.11: every built-in mod's on-screen text is movable
 
