@@ -33,7 +33,10 @@ if (!gradle) {
 }
 execFileSync(gradle, ['build', '--no-daemon', '--console=plain'], { cwd: mod, stdio: 'inherit' });
 const libs = path.join(mod, 'build', 'libs');
-const jar = fs.readdirSync(libs).filter((f) => /^glass-companion-[\d.]+\.jar$/.test(f)).sort().pop();
+// Newest version wins (numeric compare: 0.1.11 > 0.1.7).
+const ver = (f) => f.match(/([\d.]+)\.jar$/)[1].split('.').map(Number);
+const newer = (a, b) => { const x = ver(a), y = ver(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
+const jar = fs.readdirSync(libs).filter((f) => /^glass-companion-[\d.]+\.jar$/.test(f)).sort(newer).pop();
 const out = path.join(root, 'resources', 'companion');
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
