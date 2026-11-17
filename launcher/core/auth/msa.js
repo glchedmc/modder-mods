@@ -3,6 +3,7 @@
 // -> XSTS -> Minecraft access token -> entitlement + profile check.
 // Needs YOUR Azure app client ID, approved by Mojang for Minecraft services
 // (https://aka.ms/mce-reviewappid). No other launcher's client ID is used.
+const crypto = require('crypto');
 const { fetchJson, request } = require('../net');
 
 const SCOPE = 'XboxLive.signin offline_access';
@@ -50,6 +51,39 @@ async function pollToken(clientId, device, { signal } = {}) {
     throw new Error(`Microsoft sign-in failed: ${json.error_description || json.error}`);
   }
   throw new Error('The sign-in code expired. Start again.');
+}
+
+// ---- Authorization-code flow with PKCE (what the official launcher does): a Microsoft login page in a
+// window, redirected back to http://localhost. The Azure app registers the loopback redirect
+// `http://localhost`; Microsoft accepts any port on it, but only with the root path.
+const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+function makePkce() {
+  const verifier = b64url(crypto.randomBytes(48));
+  return { verifier, challenge: b64url(crypto.createHash('sha256').update(verifier).digest()), state: b64url(crypto.randomBytes(16)) };
+}
+
+function buildAuthorizeUrl({ clientId, redirectUri, challenge, state, loginHint }) {
+  const q = { client_id: clientId, response_type: 'code', redirect_uri: redirectUri, scope: SCOPE, response_mode: 'query', state, code_challenge: challenge, code_challenge_method: 'S256', prompt: 'select_account' };
+  if (loginHint) q.login_hint = loginHint;
+  return `${AUTHORITY}/authorize?${form(q)}`;
+}
+
+/** Reads the code (or the error) out of the redirect URL, checking `state` so a stray request can't sign you in. */
+function parseRedirect(url, expectedState) {
+  let u;
+  try { u = new URL(url); } catch { return { error: 'bad_redirect', description: 'Microsoft sent an unreadable redirect.' }; }
+  const p = u.searchParams;
+  if (p.get('error')) return { error: p.get('error'), description: (p.get('error_description') || '').replace(/\+/g, ' ') };
+  if (!p.get('code')) return { error: 'no_code', description: 'Microsoft didn’t return a sign-in code.' };
+  if (expectedState && p.get('state') !== expectedState) return { error: 'state_mismatch', description: 'The sign-in response didn’t match this request. Try again.' };
+  return { code: p.get('code') };
+}
+
+async function exchangeCode(clientId, { code, verifier, redirectUri }) {
+  const { status, json } = await postForm(`${AUTHORITY}/token`, { grant_type: 'authorization_code', client_id: clientId, code, redirect_uri: redirectUri, code_verifier: verifier, scope: SCOPE });
+  if (status !== 200) throw new Error(`Microsoft sign-in failed: ${json.error_description || json.error || status}`);
+  return json;
 }
 
 async function refreshMsa(clientId, refreshToken) {
@@ -117,4 +151,4 @@ async function completeLogin(msa) {
   };
 }
 
-module.exports = { startDeviceCode, pollToken, refreshMsa, completeLogin, xboxChain, minecraftLogin, minecraftProfile, XSTS_ERRORS };
+module.exports = { makePkce, buildAuthorizeUrl, parseRedirect, exchangeCode, startDeviceCode, pollToken, refreshMsa, completeLogin, xboxChain, minecraftLogin, minecraftProfile, XSTS_ERRORS };
