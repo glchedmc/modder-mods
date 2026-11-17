@@ -1,6 +1,7 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, safeStorage, shell, nativeTheme, dialog, protocol, net, systemPreferences, nativeImage, Notification } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { pathToFileURL } = require('url');
 const MAC_CHROME = require('../core/mac-chrome.json');
 const { LauncherService } = require('../core/service');
@@ -12,12 +13,19 @@ const { platformCipher } = require('../core/secrets');
 const { startP2P } = require('./p2p-host');
 const { openMicrosoftLogin } = require('./ms-login');
 
+// The product is called "Saturn" everywhere you can see, but the internal app name stays "Saturn Client":
+// it names the data folder (Application Support/Saturn Client, ~/.config/Saturn Client) and the Keychain /
+// keyring entry ("Saturn Client Safe Storage") that protects the saved Microsoft sign-in. Changing it would
+// orphan existing installs' accounts and instances. Menus and titles below are set to "Saturn" explicitly.
 app.setName('Saturn Client');
+app.setPath('userData', path.join(app.getPath('appData'), 'Saturn Client'));
+if (process.platform === 'darwin') app.setPath('logs', path.join(app.getPath('home'), 'Library', 'Logs', 'Saturn'));
+app.setAboutPanelOptions({ applicationName: 'Saturn', applicationVersion: app.getVersion() });
 // Move data from the old "Glass Launcher" folder before anything opens it.
 let migration = { migrated: false };
 try { migration = migrateDataDir(app.getPath('appData'), app.getPath('userData')); } catch (e) { migration = { migrated: false, error: e.message }; }
 
-const DOCK_ICONS = ['saturn', 'wireframe', 'crystal'];
+const DOCK_ICONS = ['saturn', 'night', 'dawn'];
 function iconImage(name) {
   const file = path.join(resourcesDir(), 'dock', `${DOCK_ICONS.includes(name) ? name : 'saturn'}.png`);
   const img = nativeImage.createFromPath(file);
@@ -90,7 +98,7 @@ function createWindow(appIcon) {
     minWidth: 1040,
     minHeight: 680,
     show: false,
-    title: 'Saturn Client',
+    title: 'Saturn',
     autoHideMenuBar: !mac,
     titleBarStyle: mac ? 'hiddenInset' : 'default',
     // Inside the sidebar's glass, centered in its 52px drag strip (see core/mac-chrome.json).
@@ -121,7 +129,7 @@ const emit = (channel, data) => { if (win && !win.isDestroyed()) win.webContents
 // Every renderer call goes through this allow-list; secrets are write-only from the UI.
 const METHODS = [
   'getSettings', 'setSettings', 'secretStatus', 'setSecret', 'listVersions', 'loaderVersions', 'loadersFor', 'perfPackInfo', 'setPerfPack', 'builtinModules',
-  'listInstances', 'createInstance', 'updateInstance', 'removeInstance', 'launch',
+  'listInstances', 'createInstance', 'updateInstance', 'removeInstance', 'launch', 'launchLogInfo',
   'searchMods', 'installMod', 'removeMod', 'toggleMod', 'checkMods',
   'listSchematics', 'addSchematics', 'removeSchematic', 'searchSchematics', 'downloadSchematic',
   'startPort', 'listJobs', 'cancelJob', 'listAccounts', 'startSignIn', 'signOut',
@@ -147,11 +155,22 @@ const logApp = (level, msg, err) => { try { if (!appLog) appLog = new AuthLog(ap
 process.on('unhandledRejection', (e) => logApp('error', 'unhandled rejection', e instanceof Error ? e : String(e)));
 process.on('uncaughtException', (e) => { logApp('error', 'uncaught exception', e); console.error(e); });
 
+/** macOS menu bar: the default menu would say "Saturn Client" (the internal app name). */
+function buildMacMenu() {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: 'Saturn', submenu: [{ role: 'about', label: 'About Saturn' }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide', label: 'Hide Saturn' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit', label: 'Quit Saturn' }] },
+    { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+    { label: 'View', submenu: [{ role: 'togglefullscreen' }] },
+    { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }] },
+  ]));
+}
+
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin') buildMacMenu();
   const storage = platformCipher(safeStorage);
   service = await new LauncherService({
     dataDir: app.getPath('userData'),
-    logsDir: app.getPath('logs'), // macOS: ~/Library/Logs/Saturn Client
+    logsDir: app.getPath('logs'), // macOS: ~/Library/Logs/Saturn
     cipher: storage.cipher,
     secretStorage: { mode: storage.mode, label: storage.label, backend: storage.backend },
     resourcesDir: resourcesDir(),
@@ -162,6 +181,7 @@ app.whenReady().then(async () => {
     openWindow: ({ url, redirectUri }) => openMicrosoftLogin({ parent: win, url, redirectUri, log: service.authLog }),
     openExternal: (url) => shell.openExternal(url),
   };
+  service.mainLog.write('info', `--- session start app=${app.getVersion()} electron=${process.versions.electron} arch=${process.arch} os=${process.getSystemVersion ? process.getSystemVersion() : ''} data=${app.getPath('userData')} logs=${app.getPath('logs')}`);
   service.authLog.header({ app: app.getVersion(), electron: process.versions.electron, arch: process.arch, os: process.getSystemVersion ? process.getSystemVersion() : '' });
   // Direct (free) hosting: WebRTC runs in a hidden window; sockets stay here.
   try {
@@ -191,7 +211,9 @@ app.whenReady().then(async () => {
       try {
         return { ok: true, value: await service[m](...args) };
       } catch (err) {
-        return { ok: false, error: err.message, code: err.code };
+        // Nothing fails silently: every API error lands in main.log (launch has its own detailed lines too).
+        if (m !== 'launch') logApp('error', `api.${m} failed: ${err && err.message}`, err instanceof Error ? err : String(err));
+        return { ok: false, error: err.message, code: err.code, logFile: err.logFile };
       }
     });
   }
@@ -208,6 +230,15 @@ app.whenReady().then(async () => {
   });
 
   // Microsoft sign-in: open the device-code page in the browser (URL comes from the active session, never the renderer).
+  ipcMain.handle('api:revealLaunchLog', async (_e, id) => {
+    const info = service.launchLogInfo(id);
+    try {
+      if (info.file && fs.existsSync(info.file)) { shell.showItemInFolder(info.file); return { ok: true, value: { file: info.file } }; }
+      if (fs.existsSync(info.dir)) { await shell.openPath(info.dir); return { ok: true, value: { file: null, dir: info.dir } }; }
+      await shell.openPath(app.getPath('logs'));
+      return { ok: true, value: { file: null, dir: app.getPath('logs') } };
+    } catch (e) { return { ok: false, error: e.message }; }
+  });
   ipcMain.handle('api:openSignInPage', async () => {
     const url = service.signIn.pageUrl();
     if (!url || !/^https:\/\/([a-z0-9-]+\.)*(microsoft|live|microsoftonline)\.com(\/|$)/i.test(url)) return { ok: true, value: { opened: false, reason: 'No sign-in code is active. Start sign-in again.' } };
@@ -322,4 +353,3 @@ app.whenReady().then(async () => {
 // Closing the main window quits (macOS keeps running in the Dock); the hidden
 // P2P worker window must not keep the app alive on its own.
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-
