@@ -10,6 +10,7 @@ const mic = require('../core/mic');
 const { migrateDataDir } = require('../core/migrate');
 const { platformCipher } = require('../core/secrets');
 const { startP2P } = require('./p2p-host');
+const { openMicrosoftLogin } = require('./ms-login');
 
 app.setName('Saturn Client');
 // Move data from the old "Glass Launcher" folder before anything opens it.
@@ -134,20 +135,34 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava',
+  'cancelSignIn', 'signInStatus', 'authLogInfo', 'focusSignIn',
   'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame', 'setGameVisibility',
   'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
   'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
 
+const { AuthLog } = require('../core/auth/log');
+let appLog = null;
+const logApp = (level, msg, err) => { try { if (!appLog) appLog = new AuthLog(app.getPath('logs'), { name: 'main.log' }); appLog.write(level, msg, err); } catch { /* ignore */ } };
+process.on('unhandledRejection', (e) => logApp('error', 'unhandled rejection', e instanceof Error ? e : String(e)));
+process.on('uncaughtException', (e) => { logApp('error', 'uncaught exception', e); console.error(e); });
+
 app.whenReady().then(async () => {
   const storage = platformCipher(safeStorage);
   service = await new LauncherService({
     dataDir: app.getPath('userData'),
+    logsDir: app.getPath('logs'), // macOS: ~/Library/Logs/Saturn Client
     cipher: storage.cipher,
     secretStorage: { mode: storage.mode, label: storage.label, backend: storage.backend },
     resourcesDir: resourcesDir(),
     emit,
   }).init();
+  // Microsoft sign-in UI hooks: the login window (primary) and the default browser (fallback).
+  service.signIn.ui = {
+    openWindow: ({ url, redirectUri }) => openMicrosoftLogin({ parent: win, url, redirectUri, log: service.authLog }),
+    openExternal: (url) => shell.openExternal(url),
+  };
+  service.authLog.header({ app: app.getVersion(), electron: process.versions.electron, arch: process.arch, os: process.getSystemVersion ? process.getSystemVersion() : '' });
   // Direct (free) hosting: WebRTC runs in a hidden window; sockets stay here.
   try {
     const p2pEmit = (ch, data) => { emit(ch, data); if (ch === 'p2p:update' && service.social) service.social.onP2PUpdate(data); };
@@ -192,6 +207,26 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Microsoft sign-in: open the device-code page in the browser (URL comes from the active session, never the renderer).
+  ipcMain.handle('api:openSignInPage', async () => {
+    const url = service.signIn.pageUrl();
+    if (!url || !/^https:\/\/([a-z0-9-]+\.)*(microsoft|live|microsoftonline)\.com(\/|$)/i.test(url)) return { ok: true, value: { opened: false, reason: 'No sign-in code is active. Start sign-in again.' } };
+    try {
+      await shell.openExternal(url);
+      service.authLog.info('sign-in: opened the sign-in page in the default browser');
+      return { ok: true, value: { opened: true, url } };
+    } catch (e) {
+      service.authLog.error('sign-in: could not open the browser', e);
+      return { ok: true, value: { opened: false, url, reason: `Couldn’t open your browser (${e.message}). Go to ${url} yourself and type the code.` } };
+    }
+  });
+  ipcMain.handle('api:revealAuthLog', async () => {
+    const info = service.authLogInfo();
+    service.authLog.info('log opened by the user');
+    if (!(await exists(info.file))) { shell.openPath(info.dir); return { ok: true, value: info }; }
+    shell.showItemInFolder(info.file);
+    return { ok: true, value: info };
+  });
   // Games tab: cached Steam art, Play (steam://rungameid/<appid> or a manual executable), Open in Steam.
   protocol.handle('glass-art', async (request) => {
     try {

@@ -33,12 +33,14 @@ const tailscale = require('./tailscale');
 const { lookupSkin } = require('./skins/lookup');
 const { renameMod: renameModFile, resetMod: resetModFile } = require('./mods/rename');
 const { GameLibrary } = require('./games/library');
+const { SignInManager } = require('./auth/session');
+const { AuthLog } = require('./auth/log');
 
 const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey', 'duckdnsToken'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
 
 class LauncherService {
-  constructor({ dataDir, cipher, resourcesDir, emit = () => {}, platform = currentPlatform(), extraJavaDirs = [], secretStorage = null }) {
+  constructor({ dataDir, logsDir = null, cipher, resourcesDir, emit = () => {}, platform = currentPlatform(), extraJavaDirs = [], secretStorage = null }) {
     this.secretStorage = secretStorage || { mode: 'keychain', label: 'macOS Keychain' };
     this.dirs = layout(dataDir);
     this.secrets = new SecretStore(this.dirs.secrets, cipher);
@@ -48,6 +50,9 @@ class LauncherService {
     this.jobs = new Map();
     this.running = new Map();
     this.authAbort = null;
+    this.logsDir = logsDir || path.join(dataDir, 'logs');
+    this.authLog = new AuthLog(this.logsDir, { meta: { platform: platform, node: process.versions.node } });
+    this.signIn = new SignInManager({ clientId: () => this.msaClientId(), save: (account) => this.secrets.set('accounts', JSON.stringify([account])), emit: (ch, d) => this.emit(ch, d), log: this.authLog });
     this.skins = new SkinLibrary(this.dirs.skins);
     this.games = new GameLibrary({ dataDir: dataDir, cacheDir: this.dirs.cache });
     this.cosmetics = new CosmeticsStore(this.dirs.cosmetics);
@@ -185,25 +190,12 @@ class LauncherService {
     return list.map((a) => ({ name: a.name, uuid: a.uuid, type: a.type }));
   }
 
-  async startSignIn() {
-    const clientId = await this.msaClientId();
-    if (!clientId) return { needsClientId: true };
-    const device = await msa.startDeviceCode(clientId);
-    if (this.authAbort) this.authAbort.abort();
-    this.authAbort = new AbortController();
-    (async () => {
-      try {
-        const token = await msa.pollToken(clientId, device, { signal: this.authAbort.signal });
-        this.emit('auth:update', { state: 'progress', step: 'Xbox Live' });
-        const account = await msa.completeLogin(token);
-        await this.secrets.set('accounts', JSON.stringify([account]));
-        this.emit('auth:update', { state: 'done', name: account.name });
-      } catch (e) {
-        this.emit('auth:update', { state: 'error', error: e.message, code: e.code });
-      }
-    })();
-    return { userCode: device.user_code, verificationUri: device.verification_uri, expiresIn: device.expires_in };
-  }
+  /** Starts (or re-shows) the device-code sign-in. Safe to call repeatedly. */
+  startSignIn(opts) { return this.signIn.start(opts || {}); }
+  focusSignIn() { return this.signIn.focus(); }
+  cancelSignIn() { return this.signIn.cancel('user'); }
+  signInStatus() { return this.signIn.status(); }
+  authLogInfo() { return { file: this.authLog.file, dir: this.logsDir }; }
 
   async signOut() { await this.secrets.set('accounts', ''); }
 
