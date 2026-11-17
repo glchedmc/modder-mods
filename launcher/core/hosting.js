@@ -187,7 +187,7 @@ async function readVoiceConfig(instance, dir) {
 async function writeVoiceConfig(instance, dir, { voiceHost = '', port } = {}) {
   const file = voiceConfigPath(instance, dir);
   let txt = '';
-  try { txt = await fsp.readFile(file, 'utf8'); } catch { txt = '# Simple Voice Chat server config (voice_host set by Saturn Client Host World)\n'; }
+  try { txt = await fsp.readFile(file, 'utf8'); } catch { txt = '# Simple Voice Chat server config (voice_host set by Saturn Host World)\n'; }
   const cur = parseProperties(txt);
   const values = { voice_host: voiceHost };
   if (port) values.port = port;

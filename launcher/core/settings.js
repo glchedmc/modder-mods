@@ -35,7 +35,7 @@ const DEFAULTS = {
   selectedInstance: null,
   sidebarCollapsed: false,
   sidebarMode: 'icons', // icons | hidden (what "collapsed" means)
-  appIcon: 'saturn', // saturn | wireframe | crystal (dock icon)
+  appIcon: 'saturn', // saturn | night | dawn (dock icon)
   micPrompted: false,
   skinAiProvider: 'grok', // grok | openai
   skinAiGrokModel: 'grok-imagine-image-2.0',

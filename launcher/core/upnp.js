@@ -111,7 +111,7 @@ class Gateway {
 
   async externalIp() { return tag(await this.call('GetExternalIPAddress', {}), 'NewExternalIPAddress'); }
 
-  addPortMapping({ externalPort, internalPort = externalPort, protocol = 'TCP', internalClient, description = 'Saturn Client', leaseDuration = 0 }) {
+  addPortMapping({ externalPort, internalPort = externalPort, protocol = 'TCP', internalClient, description = 'Saturn', leaseDuration = 0 }) {
     return this.call('AddPortMapping', {
       NewRemoteHost: '', NewExternalPort: externalPort, NewProtocol: protocol.toUpperCase(),
       NewInternalPort: internalPort, NewInternalClient: internalClient, NewEnabled: 1,
