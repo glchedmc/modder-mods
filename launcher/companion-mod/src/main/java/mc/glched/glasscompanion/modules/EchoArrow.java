@@ -1,6 +1,7 @@
 package mc.glched.glasscompanion.modules;
 
 import mc.glched.glasscompanion.CompanionConfig;
+import mc.glched.glasscompanion.HudRenderer;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -272,7 +273,7 @@ public final class EchoArrow implements SoundEventListener {
 		List<HeardSound> snapshot;
 		synchronized (LOCK) {
 			purgeExpiredLocked(now);
-			if (HEARD.isEmpty()) {
+			if (HEARD.isEmpty() && !HudRenderer.editing) {
 				return;
 			}
 			snapshot = new ArrayList<>(HEARD);
@@ -283,7 +284,24 @@ public final class EchoArrow implements SoundEventListener {
 		int cx = graphics.guiWidth() / 2;
 		int cy = graphics.guiHeight() / 2;
 		int radius = EchoArrowSettings.ringRadius;
+		// Movable HUD element "echoRing": centered on the crosshair until moved in the HUD editor.
+		int reach = radius + ARROW_HEIGHT + 2;
+		boolean moved = HudRenderer.anchor(graphics, "echoRing", cx - reach, cy - reach, 2 * reach, 2 * reach, true);
 		drawRing(graphics, cx, cy, radius);
+		if (snapshot.isEmpty()) {
+			// Editor preview: one sample arrow and readout.
+			float rad = (float) Math.toRadians(40);
+			drawArrow(graphics, cx, cy, rad, radius, 0xFFFFD36B);
+			String line = "Footsteps  6";
+			int textRadius = radius + ARROW_HEIGHT + 6;
+			int width = Math.round(client.font.width(line) * TEXT_SCALE);
+			Matrix3x2fStack p = graphics.pose();
+			p.pushMatrix();
+			p.translate(cx + Math.round(Mth.sin(rad) * textRadius) - width / 2f, cy - Math.round(Mth.cos(rad) * textRadius) - 3);
+			p.scale(TEXT_SCALE, TEXT_SCALE);
+			graphics.text(client.font, line, 0, 0, 0xFFFFFFFF, true);
+			p.popMatrix();
+		}
 
 		Vec3 camPos = camera.position();
 		float yaw = camera.yRot();
@@ -348,6 +366,9 @@ public final class EchoArrow implements SoundEventListener {
 			pose.scale(TEXT_SCALE, TEXT_SCALE);
 			graphics.text(font, line, 0, 0, textColor, true);
 			pose.popMatrix();
+		}
+		if (moved) {
+			graphics.pose().popMatrix();
 		}
 	}
 

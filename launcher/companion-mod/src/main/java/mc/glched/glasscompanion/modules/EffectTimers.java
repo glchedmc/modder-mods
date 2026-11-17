@@ -1,12 +1,19 @@
 package mc.glched.glasscompanion.modules;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import mc.glched.glasscompanion.CompanionConfig;
+import mc.glched.glasscompanion.HudRenderer;
+import net.minecraft.client.gui.Hud;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -20,7 +27,11 @@ import com.google.common.collect.Ordering;
 
 import org.joml.Matrix3x2fStack;
 
-/** From Brew Clock: a time-left bar and m:ss label on every vanilla status-effect icon. */
+/**
+ * From Brew Clock: a time-left bar and m:ss label on every vanilla status-effect icon.
+ * A movable HUD element ("effectTimers"): until it is moved it decorates vanilla's icons in place;
+ * once moved, vanilla's icons are hidden and the whole panel (icons, bars, times) draws at the saved spot.
+ */
 public final class EffectTimers {
 	private static final int ICON_SIZE = 24;
 	private static final int ICON_SPACING = 25;
@@ -38,9 +49,25 @@ public final class EffectTimers {
 	private static final float YELLOW_FRACTION = 0.5f;
 	private static final float RED_FRACTION = 0.2f;
 
+	private static final Identifier BG = Identifier.withDefaultNamespace("hud/effect_background");
+	private static final Identifier BG_AMBIENT = Identifier.withDefaultNamespace("hud/effect_background_ambient");
+
 	private static final Map<Holder<MobEffect>, TrackedEffect> TRACKED = new HashMap<>();
 
 	private EffectTimers() {
+	}
+
+	/** True once the effect panel was moved in the HUD editor: Saturn then draws the icons itself, vanilla's are hidden. */
+	public static boolean replacesVanilla() {
+		return CompanionConfig.module("effectTimers") && CompanionConfig.layout("effectTimers") != null;
+	}
+
+	/** Shown in the HUD editor when no effect is active, so the panel can still be placed. */
+	private static List<MobEffectInstance> samples() {
+		return List.of(
+				new MobEffectInstance(MobEffects.SPEED, 20 * 151, 1),
+				new MobEffectInstance(MobEffects.NIGHT_VISION, MobEffectInstance.INFINITE_DURATION),
+				new MobEffectInstance(MobEffects.POISON, 20 * 9));
 	}
 
 	public static void extractHud(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -53,37 +80,57 @@ public final class EffectTimers {
 			return;
 		}
 
-		Collection<MobEffectInstance> effects = client.player.getActiveEffects();
-		if (effects.isEmpty()) {
-			TRACKED.clear();
-			return;
-		}
-
 		Screen screen = client.gui.screen();
 		if (screen != null && screen.showsActiveEffects()) {
 			return;
 		}
 
-		syncTracked(effects);
+		Collection<MobEffectInstance> effects = client.player.getActiveEffects();
+		List<MobEffectInstance> shown = new ArrayList<>();
+		for (MobEffectInstance effect : Ordering.natural().reverse().sortedCopy(effects)) {
+			if (effect.showIcon()) {
+				shown.add(effect);
+			}
+		}
+		boolean sample = shown.isEmpty() && HudRenderer.editing;
+		if (effects.isEmpty()) {
+			TRACKED.clear();
+		} else {
+			syncTracked(effects);
+		}
+		if (shown.isEmpty() && !sample) {
+			return;
+		}
+		if (sample) {
+			shown = samples();
+		}
 
 		graphics.nextStratum();
+
+		int beneficial = 0;
+		int harmful = 0;
+		for (MobEffectInstance effect : shown) {
+			if (effect.getEffect().value().isBeneficial()) {
+				beneficial++;
+			} else {
+				harmful++;
+			}
+		}
+		int top = 1 + (client.isDemo() ? DEMO_Y_OFFSET : 0);
+		int cols = Math.max(1, Math.max(beneficial, harmful));
+		int boxW = cols * ICON_SPACING - 1;
+		int boxH = harmful > 0 ? HARMFUL_ROW_OFFSET + ICON_SIZE : ICON_SIZE;
+		// Vanilla's spot: right-aligned at the top of the screen.
+		boolean moved = HudRenderer.anchor(graphics, "effectTimers", graphics.guiWidth() - cols * ICON_SPACING, top, boxW, boxH, true);
+		boolean drawIcons = moved || sample;
 
 		Font font = client.font;
 		int beneficialCount = 0;
 		int harmfulCount = 0;
-
 		// Mirror Hud.extractEffects icon placement so bars sit on the vanilla 24x24 frames.
-		for (MobEffectInstance effect : Ordering.natural().reverse().sortedCopy(effects)) {
-			if (!effect.showIcon()) {
-				continue;
-			}
-
+		for (MobEffectInstance effect : shown) {
 			int x = graphics.guiWidth();
-			int y = 1;
-			if (client.isDemo()) {
-				y += DEMO_Y_OFFSET;
-			}
-
+			int y = top;
 			if (effect.getEffect().value().isBeneficial()) {
 				beneficialCount++;
 				x -= ICON_SPACING * beneficialCount;
@@ -92,8 +139,14 @@ public final class EffectTimers {
 				x -= ICON_SPACING * harmfulCount;
 				y += HARMFUL_ROW_OFFSET;
 			}
-
+			if (drawIcons) {
+				graphics.blitSprite(RenderPipelines.GUI_TEXTURED, effect.isAmbient() ? BG_AMBIENT : BG, x, y, ICON_SIZE, ICON_SIZE);
+				graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Hud.getMobEffectSprite(effect.getEffect()), x + 3, y + 3, 18, 18);
+			}
 			drawTimer(graphics, font, effect, x, y);
+		}
+		if (moved) {
+			graphics.pose().popMatrix();
 		}
 	}
 

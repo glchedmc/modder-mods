@@ -3,6 +3,7 @@ package mc.glched.glasscompanion.waypoints;
 import java.lang.reflect.Field;
 
 import mc.glched.glasscompanion.GlassCompanion;
+import mc.glched.glasscompanion.HudRenderer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -48,7 +49,61 @@ public final class MinimapBridge {
 		return present;
 	}
 
+	/**
+	 * Corner Atlas's map box in vanilla GUI pixels at its configured corner: x, y, w, h
+	 * (map plus the coordinate line under it), or null when the map is off.
+	 */
+	static int[] mapBox(GuiGraphicsExtractor g) {
+		if (!present()) {
+			return null;
+		}
+		try {
+			if (!enabled.getBoolean(null)) {
+				return null;
+			}
+			int mapSize = size.getInt(null);
+			int c = Math.floorMod(corner.getInt(null), 4);
+			int textH = Minecraft.getInstance().font.lineHeight + 1;
+			boolean right = c == 1 || c == 3;
+			boolean bottom = c >= 2;
+			int x = right ? g.guiWidth() - mapSize - MARGIN : MARGIN;
+			int y = bottom ? g.guiHeight() - mapSize - MARGIN - textH : MARGIN;
+			return new int[] {x, y, mapSize, mapSize + textH};
+		} catch (ReflectiveOperationException | RuntimeException ex) {
+			return null;
+		}
+	}
+
+	/**
+	 * Runs Corner Atlas's own map drawing, moved and scaled to where the HUD editor put
+	 * the "minimap" element (unchanged until it is moved). Corner Atlas itself is not modified.
+	 */
+	public static void drawMoved(GuiGraphicsExtractor g, Runnable drawMap) {
+		Minecraft mc = Minecraft.getInstance();
+		int[] box = mc.player == null ? null : mapBox(g);
+		boolean moved = box != null && HudRenderer.anchor(g, "minimap", box[0], box[1], box[2], box[3], true);
+		try {
+			drawMap.run();
+		} finally {
+			if (moved) {
+				g.pose().popMatrix();
+			}
+		}
+	}
+
 	static void draw(GuiGraphicsExtractor g, DeltaTracker delta) {
+		int[] box = mapBox(g);
+		boolean moved = box != null && HudRenderer.anchor(g, "minimap", box[0], box[1], box[2], box[3], false);
+		try {
+			drawMarkers(g, delta);
+		} finally {
+			if (moved) {
+				g.pose().popMatrix();
+			}
+		}
+	}
+
+	private static void drawMarkers(GuiGraphicsExtractor g, DeltaTracker delta) {
 		if (!present()) {
 			return;
 		}
