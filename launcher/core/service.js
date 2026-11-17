@@ -35,6 +35,7 @@ const { renameMod: renameModFile, resetMod: resetModFile } = require('./mods/ren
 const { GameLibrary } = require('./games/library');
 const { SignInManager } = require('./auth/session');
 const { AuthLog } = require('./auth/log');
+const { LaunchLog, diagnose, ensureExecutable, clearQuarantine, binaryArch, summarizeCommand } = require('./launch-log');
 
 const SECRET_NAMES = ['xaiApiKey', 'curseforgeApiKey', 'openaiApiKey', 'duckdnsToken'];
 const FABRIC_API_PROJECT = 'P7dR8mSH';
@@ -51,7 +52,9 @@ class LauncherService {
     this.running = new Map();
     this.authAbort = null;
     this.logsDir = logsDir || path.join(dataDir, 'logs');
-    this.authLog = new AuthLog(this.logsDir, { meta: { platform: platform, node: process.versions.node } });
+    this.authLog = new AuthLog(this.logsDir, { meta: { platform: `${platform.name}-${platform.arch}`, node: process.versions.node } });
+    this.mainLog = new AuthLog(this.logsDir, { name: 'main.log' });
+    this.launchLogs = new Map(); // instanceId -> file of the latest launch
     this.signIn = new SignInManager({ clientId: () => this.msaClientId(), save: (account) => this.secrets.set('accounts', JSON.stringify([account])), emit: (ch, d) => this.emit(ch, d), log: this.authLog });
     this.skins = new SkinLibrary(this.dirs.skins);
     this.games = new GameLibrary({ dataDir: dataDir, cacheDir: this.dirs.cache });
@@ -137,9 +140,13 @@ class LauncherService {
   loadersFor(mc) { return loaders.availableLoaders(mc); }
 
   // ---------- java ----------
-  async javaFor(major) {
+  async javaFor(major, log = () => {}) {
     const s = await this.getSettings();
-    return java.ensureJava(this.dirs, major, this.platform, { override: s.javaPath || undefined, extraDirs: [...this.extraJavaDirs, ...(await java.systemJavaDirs(this.platform))], onStatus: (t) => this.emit('launch:progress', { phase: t, done: 0, total: 1 }) });
+    const bin = await java.ensureJava(this.dirs, major, this.platform, { override: s.javaPath || undefined, extraDirs: [...this.extraJavaDirs, ...(await java.systemJavaDirs(this.platform))], onStatus: (t) => { log(`java: ${t}`); this.emit('launch:progress', { phase: t, done: 0, total: 1 }); } });
+    if (await ensureExecutable(bin).catch(() => false)) log(`java: restored the executable bit on ${bin}`);
+    if (this.platform.name === 'osx') await clearQuarantine([this.dirs.runtimes], this.platform, log).catch(() => {});
+    log(`java: ${bin} (Java ${major}, ${await binaryArch(bin)}; Saturn is ${process.arch})`);
+    return bin;
   }
   javaHomeOf(bin) { return path.dirname(path.dirname(bin)); }
 
@@ -154,7 +161,7 @@ class LauncherService {
       if (meta.type === 'server') {
         const { build } = await loaders.installServer(meta.loader, dir, meta.mcVersion, meta.loaderVersion);
         meta.loaderVersion = build;
-        if (partial.eula) await fsp.writeFile(path.join(dir, 'eula.txt'), `# Accepted in Saturn Client ${new Date().toISOString()}\neula=true\n`);
+        if (partial.eula) await fsp.writeFile(path.join(dir, 'eula.txt'), `# Accepted in Saturn ${new Date().toISOString()}\neula=true\n`);
         if (meta.loader === 'fabric-server') {
           const plan = await installer.planModrinth(meta, FABRIC_API_PROJECT).catch(() => ({ plan: [] }));
           if (plan.plan.length) meta.mods.push(...(await installer.applyPlan(dir, meta, 'modrinth', plan.plan, { titles: { [FABRIC_API_PROJECT]: 'Fabric API' } })));
@@ -215,60 +222,124 @@ class LauncherService {
   }
 
   // ---------- launching ----------
-  async launch(id, opts = {}) {
-    if (this.running.has(id)) throw new Error('Already running');
-    const meta = await instances.get(this.dirs, id);
-    const dir = this.instanceDir(id);
-    const progress = (p) => this.emit('launch:progress', { id, ...p });
-    if (meta.type === 'server') return this.startServer(meta, dir);
-    const vanilla = await mojang.getVanillaVersion(this.dirs, meta.mcVersion);
-    const javaMajor = mojang.javaMajorFor(vanilla);
-    progress({ phase: `Java ${javaMajor}`, done: 0, total: 1 });
-    const javaPath = await this.javaFor(javaMajor);
-    if (!meta.versionId) {
-      const r = await loaders.installClientLoader(meta.loader, this.dirs, meta.mcVersion, meta.loaderVersion, { java: javaPath });
-      meta.versionId = r.versionId; meta.loaderVersion = r.loaderVersion;
+  /** Newest launch log for an instance: {file, dir}. */
+  launchLogInfo(id) {
+    let file = this.launchLogs.get(id) || null;
+    if (!file) {
+      try {
+        const dir = path.join(this.logsDir, 'launches');
+        const safe = String(id).replace(/[^\w.-]+/g, '_');
+        const fsx = require('fs');
+        const names = fsx.readdirSync(dir).filter((f) => f.startsWith(`${safe}-`) && f.endsWith('.log')).sort();
+        if (names.length) file = path.join(dir, names[names.length - 1]);
+      } catch { /* none yet */ }
     }
-    await this.syncCompanion(meta, dir);
-    await this.syncPerfPack(meta, dir, progress);
-    await this.syncCosmeticsTo(meta, dir).catch(() => {});
-    const account = await this.launchAccount();
-    const { spec } = await launch.prepare({ dirs: this.dirs, instance: meta, instanceDir: dir, account, platform: this.platform, javaPath, progress });
-    // Friends → Join: drop straight into the friend's world (Quick Play, 1.20+).
-    if (opts && opts.server && /^[\w.-]+(:\d{1,5})?$/.test(String(opts.server))) spec.args.push('--quickPlayMultiplayer', String(opts.server));
-    else if (opts && opts.world && /^[\w .-]{1,64}$/.test(String(opts.world))) spec.args.push('--quickPlaySingleplayer', String(opts.world));
-    progress({ phase: 'Starting', done: 1, total: 1 });
-    this.emit('launch:log', { id, line: redact(launch.redactedCommand(spec).join(' ')) });
-    const started = Date.now();
-    const child = launch.start(spec, {
-      onLine: (line) => { this.emit('launch:log', { id, line: redact(line) }); this.watchHostLine(id, line); },
-      onExit: async (code) => {
-        this.running.delete(id);
-        this.runningMeta.delete(id);
-        this.lanPorts.delete(id);
-        if (this.hosts.has(id)) { this.hosts.delete(id); this.emit('host:update', { id, address: null, state: 'stopped' }); }
-        const m = await instances.get(this.dirs, id);
-        await instances.save(this.dirs, { ...m, playTimeSec: (m.playTimeSec || 0) + Math.round((Date.now() - started) / 1000) });
-        this.emit('launch:state', { id, state: 'exited', code, error: code ? `Minecraft exited with code ${code}. See the Logs tab.` : null });
-      },
-    });
-    this.running.set(id, child);
-    this.runningMeta.set(id, { name: meta.name, mcVersion: meta.mcVersion, loader: meta.loader });
-    await instances.save(this.dirs, { ...meta, lastPlayed: new Date().toISOString() });
-    this.emit('launch:state', { id, state: 'running' });
-    return { pid: child.pid };
+    return { file, dir: path.join(this.logsDir, 'launches') };
   }
 
-  async startServer(meta, dir) {
-    const javaPath = await this.javaFor(25);
+  /** Play. Never starts a dedicated server unless the caller explicitly says asServer (the server's own Start button). */
+  async launch(id, opts = {}) {
+    if (this.running.has(id)) throw new Error('Already running');
+    const mlog = (level, msg, extra) => this.mainLog.write(level, `launch[${id}]: ${msg}`, extra);
+    const llog = new LaunchLog(this.logsDir, id);
+    this.launchLogs.set(id, llog.file);
+    const step = (msg) => { mlog('info', msg); llog.note(msg); };
+    const fail = (e) => {
+      mlog('error', `FAILED: ${e && e.message}`, e instanceof Error ? e : String(e));
+      llog.note(`FAILED: ${e && e.message}\n${(e && e.stack) || ''}`);
+      const err = new Error(`Couldn’t start Minecraft: ${(e && e.message) || e}`);
+      err.code = (e && e.code) || 'LAUNCH_FAILED';
+      err.logFile = llog.file;
+      this.emit('launch:state', { id, state: 'error', error: err.message, logFile: llog.file });
+      return err;
+    };
+    try {
+      const meta = await instances.get(this.dirs, id);
+      const dir = this.instanceDir(id);
+      step(`begin: "${meta.name}" type=${meta.type} mc=${meta.mcVersion} loader=${meta.loader}${meta.loaderVersion ? ` ${meta.loaderVersion}` : ''} version=${meta.versionId || '(to install)'} platform=${this.platform.name}-${this.platform.arch} log=${llog.file}`);
+      if (meta.type === 'server') {
+        if (!(opts && opts.asServer)) throw Object.assign(new Error(`“${meta.name}” is a dedicated server, not a game you can play. Pick a client instance, or use Start on the Host page to run the server.`), { code: 'SERVER_NOT_PLAYABLE' });
+        return await this.startServer(meta, dir, { step, llog });
+      }
+      const progress = (p) => this.emit('launch:progress', { id, ...p });
+      const vanilla = await mojang.getVanillaVersion(this.dirs, meta.mcVersion);
+      const javaMajor = mojang.javaMajorFor(vanilla);
+      progress({ phase: `Java ${javaMajor}`, done: 0, total: 1 });
+      const javaPath = await this.javaFor(javaMajor, step);
+      if (!meta.versionId) {
+        step(`installing ${meta.loader} for ${meta.mcVersion}`);
+        const r = await loaders.installClientLoader(meta.loader, this.dirs, meta.mcVersion, meta.loaderVersion, { java: javaPath });
+        meta.versionId = r.versionId; meta.loaderVersion = r.loaderVersion;
+      }
+      await this.syncCompanion(meta, dir);
+      await this.syncPerfPack(meta, dir, progress);
+      await this.syncCosmeticsTo(meta, dir).catch(() => {});
+      const account = await this.launchAccount();
+      step(`account: ${account.type === 'demo' ? 'demo (not signed in)' : `${account.name} (Microsoft)`}`);
+      const { spec } = await launch.prepare({ dirs: this.dirs, instance: meta, instanceDir: dir, account, platform: this.platform, javaPath, progress });
+      step(`prepared: ${spec.classpath.length} classpath entries, ${spec.natives.length} legacy natives, natives dir ${spec.paths.nativesDir}`);
+      await fsp.mkdir(dir, { recursive: true });
+      await clearQuarantine([spec.paths.nativesDir], this.platform, step).catch(() => {});
+      // Friends → Join: drop straight into the friend's world (Quick Play, 1.20+).
+      if (opts && opts.server && /^[\w.-]+(:\d{1,5})?$/.test(String(opts.server))) spec.args.push('--quickPlayMultiplayer', String(opts.server));
+      else if (opts && opts.world && /^[\w .-]{1,64}$/.test(String(opts.world))) spec.args.push('--quickPlaySingleplayer', String(opts.world));
+      progress({ phase: 'Starting', done: 1, total: 1 });
+      const cmd = launch.redactedCommand(spec);
+      step(`command: ${summarizeCommand(cmd)}`);
+      llog.write(`$ ${redact(cmd.join(' '))}`);
+      this.emit('launch:log', { id, line: redact(cmd.join(' ')) });
+      const started = Date.now();
+      const child = launch.start(spec, {
+        onLine: (line) => { llog.write(line); this.emit('launch:log', { id, line: redact(line) }); this.watchHostLine(id, line); },
+        onError: (e) => { mlog('error', `process error: ${e.message}`, e); llog.note(`process error: ${e.code || ''} ${e.message}`); },
+        onExit: async (code, signal) => {
+          this.running.delete(id);
+          this.runningMeta.delete(id);
+          this.lanPorts.delete(id);
+          if (this.hosts.has(id)) { this.hosts.delete(id); this.emit('host:update', { id, address: null, state: 'stopped' }); }
+          const ranMs = Date.now() - started;
+          mlog(code === 0 ? 'info' : 'error', `exit: code=${code} signal=${signal || 'none'} after ${Math.round(ranMs / 1000)}s`);
+          llog.note(`exit: code=${code} signal=${signal || 'none'} after ${Math.round(ranMs / 1000)}s`);
+          try {
+            const m = await instances.get(this.dirs, id);
+            await instances.save(this.dirs, { ...m, playTimeSec: (m.playTimeSec || 0) + Math.round(ranMs / 1000) });
+          } catch { /* instance deleted while running */ }
+          const bad = (code !== 0 && code !== 143 && code !== 130) || ranMs < 15000;
+          const hint = bad ? diagnose(llog.tail, { code, signal, ranMs }) : '';
+          const error = bad && signal !== 'spawn-error'
+            ? `Minecraft ${code ? `exited with code ${code}` : 'closed'}${ranMs < 15000 ? ` after ${Math.max(1, Math.round(ranMs / 1000))}s` : ''}.${hint ? ` ${hint}` : ''}`
+            : null;
+          this.emit('launch:state', { id, state: 'exited', code, signal, error, logFile: llog.file });
+        },
+      });
+      try { await child.ready; } catch (e) {
+        throw Object.assign(new Error(e.code === 'EACCES' ? `Java isn’t executable (${spec.java}). ${e.message}` : e.code === 'ENOENT' ? `Java or the game folder wasn’t found (${spec.java}). ${e.message}` : e.message), { code: e.code || 'SPAWN_FAILED' });
+      }
+      step(`spawned pid=${child.pid}`);
+      this.running.set(id, child);
+      this.runningMeta.set(id, { name: meta.name, mcVersion: meta.mcVersion, loader: meta.loader });
+      await instances.save(this.dirs, { ...meta, lastPlayed: new Date().toISOString() });
+      this.emit('launch:state', { id, state: 'running', logFile: llog.file });
+      return { pid: child.pid, logFile: llog.file };
+    } catch (e) {
+      throw fail(e);
+    }
+  }
+
+  async startServer(meta, dir, { step = () => {}, llog = null } = {}) {
+    const javaPath = await this.javaFor(25, step);
     if (!(await exists(path.join(dir, 'eula.txt')))) throw new Error('Accept the Minecraft EULA for this server first (Library → server → Settings).');
     const spec = { java: javaPath, args: [`-Xms${Math.min(2048, meta.memoryMb)}M`, `-Xmx${meta.memoryMb}M`, '-jar', 'server.jar', '--nogui'], cwd: dir };
+    step(`starting dedicated server: ${spec.java} ${spec.args.join(' ')}`);
     const child = launch.start(spec, {
-      onLine: (line) => this.emit('launch:log', { id: meta.id, line }),
-      onExit: (code) => { this.running.delete(meta.id); this.emit('launch:state', { id: meta.id, state: 'exited', code }); },
+      onLine: (line) => { if (llog) llog.write(line); this.emit('launch:log', { id: meta.id, line }); },
+      onError: (e) => this.mainLog.write('error', `launch[${meta.id}]: server process error: ${e.message}`, e),
+      onExit: (code, signal) => { this.running.delete(meta.id); this.mainLog.write(code === 0 ? 'info' : 'error', `launch[${meta.id}]: server exit code=${code} signal=${signal || 'none'}`); this.emit('launch:state', { id: meta.id, state: 'exited', code, error: code ? `Server exited with code ${code}.` : null, logFile: llog && llog.file }); },
     });
+    try { await child.ready; } catch (e) { throw Object.assign(new Error(e.message), { code: e.code }); }
+    step(`server spawned pid=${child.pid}`);
     this.running.set(meta.id, child);
-    this.emit('launch:state', { id: meta.id, state: 'running' });
+    this.emit('launch:state', { id: meta.id, state: 'running', logFile: llog && llog.file });
     return { pid: child.pid };
   }
 
@@ -611,7 +682,7 @@ class LauncherService {
     Object.assign(result, hosting.natVerdict({ publicIp: netInfo.publicIp, routerIp: result.routerIp }));
     for (const [port, protocol, what] of [[mcPort, 'TCP', 'Minecraft'], [voicePort, 'UDP', 'Voice chat']]) {
       try {
-        await gw.addPortMapping({ externalPort: port, internalPort: port, protocol, internalClient: localIp, description: `Saturn Client ${what}` });
+        await gw.addPortMapping({ externalPort: port, internalPort: port, protocol, internalClient: localIp, description: `Saturn ${what}` });
         result.mappings.push({ port, protocol, what, ok: true });
       } catch (e) {
         result.mappings.push({ port, protocol, what, ok: false, error: e.message });
@@ -699,7 +770,7 @@ class LauncherService {
     if (!check.ok) throw new Error(check.reason);
     const s = await this.getSettings();
     if (s.hostProvider === 'e4mc' && check.kind === 'e4mc' && !hosting.hasMod(meta, hosting.E4MC.projectId, 'e4mc')) await this.installMod(instanceId, 'modrinth', hosting.E4MC.projectId, hosting.E4MC.title);
-    if (!this.running.has(instanceId)) await this.launch(instanceId);
+    if (!this.running.has(instanceId)) await this.launch(instanceId, { asServer: meta.type === 'server' });
     return this.hostStatus(instanceId);
   }
 

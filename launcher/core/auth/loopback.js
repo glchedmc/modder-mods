@@ -23,7 +23,7 @@ function listenForRedirect({ timeoutMs = 5 * 60e3 } = {}) {
       }
       const failed = url.searchParams.has('error');
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(failed ? PAGE('Sign-in didn’t finish', 'Go back to Saturn Client to see what happened.') : PAGE('You’re signed in', 'You can close this tab and return to Saturn Client.'));
+      res.end(failed ? PAGE('Sign-in didn’t finish', 'Go back to Saturn to see what happened.') : PAGE('You’re signed in', 'You can close this tab and return to Saturn.'));
       finish(`http://localhost:${server.address().port}${req.url}`);
     });
     const timer = setTimeout(() => finish(null), timeoutMs);

@@ -18,7 +18,7 @@ const METHODS = [
   'hostNetwork', 'upnpMap', 'upnpUnmap', 'tailscaleStatus', 'setDdnsName', 'updateDdns', 'enableVoiceChat',
   'p2pList', 'p2pCreateInvite', 'p2pAcceptReply', 'p2pJoin', 'p2pClose',
   'lookupPlayerSkin', 'storageInfo', 'detectJava', 'copyText',
-  'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame', 'setGameVisibility', 'cancelSignIn', 'focusSignIn', 'signInStatus', 'authLogInfo', 'openSignInPage', 'revealAuthLog', 'playGame', 'openGameInSteam', 'pickGameExecutable',
+  'listGames', 'gameArt', 'setGameFavorite', 'addManualGame', 'removeManualGame', 'renameManualGame', 'setGameVisibility', 'cancelSignIn', 'focusSignIn', 'signInStatus', 'authLogInfo', 'openSignInPage', 'revealAuthLog', 'revealLaunchLog', 'launchLogInfo', 'playGame', 'openGameInSteam', 'pickGameExecutable',
   'socialState', 'socialMessages', 'socialSend', 'socialFind', 'socialAddFriend', 'socialAccept', 'socialDecline', 'socialRemove',
   'socialSetActive', 'socialSaveWorld', 'socialRemoveWorld', 'socialInvite', 'socialJoin', 'socialCancelJoin', 'socialQr', 'socialPlay', 'socialSetProfile',
 ];
@@ -27,7 +27,7 @@ const api = {};
 for (const m of METHODS) {
   api[m] = async (...args) => {
     const r = await ipcRenderer.invoke(`api:${m}`, ...args);
-    if (r && r.ok === false) { const e = new Error(r.error); e.code = r.code; throw e; }
+    if (r && r.ok === false) { const e = new Error(r.error); e.code = r.code; e.logFile = r.logFile; throw e; }
     return r && 'value' in r ? r.value : r;
   };
 }
