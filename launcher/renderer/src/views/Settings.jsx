@@ -1,5 +1,5 @@
 import { glassLabel } from '../lib/glass.mjs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '../icons';
 import { api, on, isElectron } from '../api';
 import { Switch, Range, Segmented, Sheet } from '../components/ui';
@@ -59,37 +59,142 @@ function KeyRow({ name, label, hint, link, isSet, builtin, onSave }) {
   );
 }
 
+function fmtLeft(sec) { const m = Math.floor(sec / 60); return `${m}:${String(sec % 60).padStart(2, '0')}`; }
+
+/**
+ * Microsoft sign-in, like the official launcher: clicking Sign in opens a Microsoft login window and the
+ * redirect is caught automatically. Fallbacks (small links): your default browser, or a device code.
+ * The request starts ONCE per opening (a ref guards re-renders and double clicks; the main process also
+ * re-shows an already running sign-in), and every failure shows a readable message plus the log location.
+ */
 function SignInSheet({ onClose, app }) {
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState(null);       // {method, userCode?, verificationUri?, expiresAt?} | {needsClientId}
+  const [error, setError] = useState(null);     // {message, code}
+  const [closed, setClosed] = useState(false);  // login window closed without finishing
+  const [step, setStep] = useState(null);       // 'Microsoft' | 'Xbox Live' while finishing
+  const [now, setNow] = useState(Date.now());
+  const [busy, setBusy] = useState({});
+  const [note, setNote] = useState(null);
+  const [logInfo, setLogInfo] = useState(null);
+  const started = useRef(false);
+  const closing = useRef(false);
+  const methodRef = useRef('window');
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  const begin = (method, fresh) => {
+    methodRef.current = method;
+    setError(null); setStep(null); setNote(null); setInfo(null); setClosed(false);
+    api.startSignIn({ method, fresh }).then(setInfo).catch((e) => setError({ message: e.message || 'Sign-in could not start.', code: e.code }));
+  };
   useEffect(() => {
-    api.startSignIn().then(setInfo).catch((e) => setInfo({ error: e.message, code: e.code }));
-    return on('auth:update', (u) => {
-      if (u.state === 'error') setInfo((cur) => ({ ...(cur || {}), error: u.error, code: u.code }));
-      if (u.state === 'done') onClose();
+    if (started.current) return undefined;
+    started.current = true;
+    api.authLogInfo().then(setLogInfo).catch(() => {});
+    begin('window', false);
+    const off = on('auth:update', (u) => {
+      if (u.state === 'progress') setStep(u.step);
+      if (u.state === 'cancelled') { setStep(null); setClosed(true); }
+      if (u.state === 'error') { setStep(null); setError({ message: u.error || 'Sign-in failed.', code: u.code }); }
+      if (u.state === 'done') { closing.current = true; closeRef.current(); }
     });
-  }, [onClose]);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => { off(); clearInterval(tick); if (!closing.current) api.cancelSignIn().catch(() => {}); };
+  }, []);
+
+  const once = (key, fn) => async () => {
+    if (busy[key]) return;
+    setBusy((b) => ({ ...b, [key]: true }));
+    try { await fn(); } finally { setTimeout(() => setBusy((b) => ({ ...b, [key]: false })), 600); }
+  };
+  const method = info && info.method;
+  const copy = once('copy', async () => { await api.copyText(info.userCode); app.toast('Code copied', 'ok'); });
+  const openPage = once('open', async () => {
+    try {
+      const r = await api.openSignInPage();
+      if (r && r.opened) { await api.copyText(info.userCode).catch(() => {}); setNote('Opened in your browser. The code is copied: paste it there.'); }
+      else setNote((r && r.reason) || `Go to ${info.verificationUri} and type the code.`);
+    } catch (e) { setNote(`Couldn’t open the browser. Go to ${info.verificationUri} and type the code.`); }
+  });
+  const showWindow = once('show', async () => { await api.focusSignIn(); });
+  const showLog = once('log', async () => { try { await api.revealAuthLog(); } catch (e) { app.toast(e.message, 'error'); } });
+  const retry = once('retry', async () => begin(methodRef.current, true));
+  const useMethod = (m) => once(`m-${m}`, async () => begin(m, true));
+  const left = method === 'code' && info.expiresAt ? Math.max(0, Math.round((info.expiresAt - now) / 1000)) : 0;
+  const expired = method === 'code' && left <= 0;
+  const stopped = Boolean(error || closed || expired);
+  const hasClient = !(info && info.needsClientId);
+
   return (
     <Sheet onClose={onClose} width={480}>
-      <h2>Sign in with Microsoft</h2>
-      {!info && <div className="muted" style={{ marginTop: 12 }}>Contacting Microsoft…</div>}
-      {info && info.error && (
-        <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
-          {info.code === 'APP_NOT_APPROVED' ? 'Microsoft sign-in is waiting on Mojang approval.' : info.error}
+      <div className="signin-sheet">
+        <h2>Sign in with Microsoft</h2>
+        {!info && !error && <div className="muted" style={{ marginTop: 12 }}>Opening Microsoft…</div>}
+
+        {error && (
+          <div className="notice red signin-error" role="alert">
+            <Icon name="info" size={16} />
+            <div style={{ flex: 1 }}>
+              <b>{error.code === 'APP_NOT_APPROVED' ? 'Waiting on Mojang approval' : 'Sign-in didn’t finish'}</b>
+              <div style={{ marginTop: 3, lineHeight: 1.5 }}>{error.message}</div>
+              <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
+                Details are in the log{logInfo ? <>: <span className="mono" style={{ wordBreak: 'break-all' }}>{logInfo.file}</span></> : '.'}
+              </div>
+            </div>
+          </div>
+        )}
+        {closed && !error && <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>The Microsoft window was closed before sign-in finished. Try again when you’re ready.</div>}
+
+        {info && info.needsClientId && (
+          <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
+            Microsoft sign-in for Minecraft needs an Azure app client ID that Mojang has approved for Minecraft services. Add yours under <b>Azure client ID</b> first.
+          </div>
+        )}
+
+        {(method === 'window' || method === 'browser') && !stopped && (
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div className="muted" style={{ lineHeight: 1.55 }}>
+              {method === 'window' ? 'A Microsoft sign-in window is open. Sign in with the account that owns Minecraft; this closes by itself when you’re done.' : 'Finish signing in on the Microsoft page in your browser, then come back here. This continues by itself.'}
+            </div>
+            <div className="row signin-wait" style={{ justifyContent: 'center', marginTop: 16 }}>
+              <span className="activity" style={{ padding: 0, minWidth: 0 }}><span className="spinner" /></span>
+              <span className="muted">{step ? `Signed in. Finishing with ${step}…` : method === 'window' ? 'Waiting for the sign-in window…' : 'Waiting for your browser…'}</span>
+            </div>
+            {method === 'window' && !step && <div style={{ marginTop: 14 }}><button className="btn" onClick={showWindow} disabled={busy.show}><Icon name="external" size={14} />Show sign-in window</button></div>}
+          </div>
+        )}
+
+        {method === 'code' && !error && (
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <div className="muted" style={{ lineHeight: 1.5 }}>Open <b>{(info.verificationUri || '').replace(/^https?:\/\/(www\.)?/, '')}</b> in your browser and enter this code:</div>
+            <div className={`signin-code ${expired ? 'expired' : ''}`} aria-label="Sign-in code">{info.userCode}</div>
+            <div className="row" style={{ justifyContent: 'center', gap: 10 }}>
+              <button className="btn" onClick={copy} disabled={busy.copy || expired}><Icon name="copy" size={14} />Copy code</button>
+              <button className="btn primary" onClick={openPage} disabled={busy.open || expired}><Icon name="external" size={14} />Open in browser</button>
+            </div>
+            {note && <div className="faint" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5 }}>{note}</div>}
+            <div className="row signin-wait" style={{ justifyContent: 'center', marginTop: 16 }}>
+              {expired
+                ? <span className="muted">This code expired.</span>
+                : <><span className="activity" style={{ padding: 0, minWidth: 0 }}><span className="spinner" /></span><span className="muted">{step ? `Approved. Finishing with ${step}…` : 'Waiting for you to finish in the browser…'}</span><span className="faint mono" style={{ fontSize: 12 }}>{fmtLeft(left)}</span></>}
+            </div>
+          </div>
+        )}
+
+        {hasClient && !step && (
+          <div className="signin-alt">
+            {method !== 'window' && <button className="link" onClick={useMethod('window')}>Use the sign-in window</button>}
+            {method !== 'browser' && <button className="link" onClick={useMethod('browser')}>Use my browser instead</button>}
+            {method !== 'code' && <button className="link" onClick={useMethod('code')}>Use a code instead</button>}
+          </div>
+        )}
+
+        <div className="foot">
+          {stopped && <button className="btn ghost" onClick={showLog} disabled={busy.log}><Icon name="folder" size={14} />Show log</button>}
+          {stopped && hasClient && <button className="btn primary" onClick={retry} disabled={busy.retry}><Icon name="refresh" size={14} />Try again</button>}
+          <button className="btn" onClick={onClose}>Close</button>
         </div>
-      )}
-      {info && info.needsClientId && (
-        <div className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
-          Microsoft sign-in for Minecraft needs an Azure app client ID that Mojang has approved for Minecraft services. Add yours under <b>Azure client ID</b> first. See the README for the two-step setup.
-        </div>
-      )}
-      {info && info.userCode && !info.needsClientId && (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <div className="muted">Open <b>{info.verificationUri}</b> and enter:</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 34, fontWeight: 700, letterSpacing: '0.12em', margin: '16px 0' }}>{info.userCode}</div>
-          <div className="row" style={{ justifyContent: 'center' }}><span className="activity" style={{ padding: 0, minWidth: 0 }}><span className="spinner" /></span><span className="muted">Waiting for you to finish in the browser…</span></div>
-        </div>
-      )}
-      <div className="foot"><button className="btn" onClick={onClose}>Close</button></div>
+      </div>
     </Sheet>
   );
 }
@@ -131,6 +236,7 @@ export default function Settings({ app }) {
   const [section, setSection] = useState(app.params.section || 'general');
   const [info, setInfo] = useState({});
   const [signIn, setSignIn] = useState(false);
+  const closeSignIn = useCallback(() => setSignIn(false), []);
   const s = app.settings;
   const set = (patch) => app.saveSettings(patch);
   useEffect(() => { api.appInfo().then(setInfo); }, []);
@@ -290,7 +396,7 @@ export default function Settings({ app }) {
           </div>
         )}
       </div>
-      {signIn && <SignInSheet app={app} onClose={() => setSignIn(false)} />}
+      {signIn && <SignInSheet app={app} onClose={closeSignIn} />}
     </div>
   );
 }

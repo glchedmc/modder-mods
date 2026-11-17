@@ -106,7 +106,7 @@ export default function App() {
         else if (e.type === 'join-ready') toast(e.text, 'ok');
         else if (e.type === 'join-failed') toast(e.text, 'error');
       }),
-      on('auth:update', (u) => { if (u.state === 'done') { toast(`Signed in as ${u.name}`, 'ok'); refresh(); } else if (u.state === 'error') toast(u.error, 'error'); }),
+      on('auth:update', (u) => { if (u.state === 'done') { toast(`Signed in as ${u.name}`, 'ok'); refresh(); } else if (u.state === 'error' && !document.querySelector('.signin-sheet')) toast(u.error, 'error'); }),
     ];
     api.socialState().then((s) => setSocial({ unread: (s && s.unreadTotal) || 0, requests: (s && s.requests) || 0 })).catch(() => {});
     return () => offs.forEach((f) => f && f());
